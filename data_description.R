@@ -3,9 +3,21 @@
 # Libraries ----------------------------------------------------------------------------------------
 library(tidyverse)
 library(psych)
+library(corrplot) # use corrplot(cor(...)) for nice correlation plots
 
 # Load data ----------------------------------------------------------------------------------------
 data <- readRDS("dataJuSAW.rds")
+
+# Steps ============================================================================================
+# Steps for analysis
+# • Analysis for each variable
+# • Visualization for bivariate associations (e.g. Scatter‐plots & boxplots)
+# • Correlations
+# • Regression model
+# • Covariate Selection
+# • Checking for collinearity
+# • Checking for diagnostics (residual analysis)
+
 
 # Exploring the data ===============================================================================
 str(data)

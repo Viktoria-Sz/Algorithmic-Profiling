@@ -3,6 +3,7 @@
 # Libraries --------------------------------------------------------------------
 library(tidyverse)
 library(modelr)
+options(na.action = na.warn)
 
 # Load data --------------------------------------------------------------------
 data <- readRDS("dataJuSAW.rds")
@@ -54,6 +55,7 @@ table(longill)
 data$BEEINTRÄCHTIGT_order <-factor(lhealth, levels = c("ja stark", "ja ein wenig", "nein"), 
                                    labels =  c("ja stark", "ja ein wenig", "nein"), ordered = is.ordered(r_rgstyp))
 data$BEEINTRÄCHTIGT <-ifelse(data$BEEINTRÄCHTIGT_order == "ja stark" | data$BEEINTRÄCHTIGT_order == "ja ein wenig", "ja", "nein")
+
 # Was machen mit den den "keine Angabe" Leuten?
 table(data$BEEINTRÄCHTIGT_order)
 table(data$BEEINTRÄCHTIGT_order, lhealth, useNA = "always")
@@ -65,7 +67,7 @@ table(r_berufsgruppe_ams1)
 table(r_berufsgruppe)
 table(r_berufsgruppe_ams1, r_berufsgruppe) # Was ist mit 9? Wird nicht berücksichtigt im AMS Methoden paper
 data$BERUFSGRUPPE_all <- factor(r_berufsgruppe_ams1)
-data$BERUFSGRUPPE <- factor(r_berufsgruppe_ams1)
+data$BERUFSGRUPPE <- factor(r_berufsgruppe)
 
 # WICHTIG: Für junge Leute unter 25:
 # Für diese Population werden die Merkmale STAATENGRUPPE, GESCHÄFTSFALLDAUER und BESCHÄFTIGUNGSVERLAUF nicht für die Schätzung verwendet.
@@ -131,16 +133,55 @@ table(data$BESCHÄFTIGUNGSTAGE)
 
 
 # AMS Model --------------------------------------------------------------------
-
-model1 <- lm(BESCHÄFTIGUNGSTAGE ~ GESCHLECHT_WEIBLICH + ALTERSGRUPPE + STAATENGRUPPE 
+# Refernzkategorie ändern + was ist los mit RGS?
+model1 <- glm(BESCHÄFTIGUNGSTAGE ~ GESCHLECHT_WEIBLICH + STAATENGRUPPE + ALTERSGRUPPE 
              + AUSBILDUNG + BETREUUNGSPFLICHTEN + RGS_TYP
              + BEEINTRÄCHTIGT + BERUFSGRUPPE + BESCHÄFTIGUNGSVERLAUF
-             + GESCHÄFTSFALLDAUER + GESCHÄFTSFALLFREQ + MASSNAHMENTEILNAHME, data = data)
+             + GESCHÄFTSFALLDAUER + GESCHÄFTSFALLFREQ + MASSNAHMENTEILNAHME, 
+             family = "binomial", data = data)
 summary(model1)
 
 # Alternative (ordered) Variablen
-model_alt <- lm(BESCHÄFTIGUNGSTAGE ~ GESCHLECHT_WEIBLICH + ALTERSGRUPPE + STAATENGRUPPE 
-             + AUSBILDUNG + BETREUUNGSPFLICHTEN + RGS_TYP
-             + BEEINTRÄCHTIGT + BERUFSGRUPPE + BESCHÄFTIGUNGSVERLAUF
-             + GESCHÄFTSFALLDAUER + GESCHÄFTSFALLFREQ + MASSNAHMENTEILNAHME, data = data)
+model_alt <- glm(BESCHÄFTIGUNGSTAGE ~ GESCHLECHT_WEIBLICH + ALTERSGRUPPE + STAATENGRUPPE 
+             + AUSBILDUNG + BETREUUNGSPFLICHTEN_BOTH + RGS_TYP
+             + BEEINTRÄCHTIGT + BERUFSGRUPPE_all + BESCHÄFTIGUNGSVERLAUF
+             + GESCHÄFTSFALLDAUER + GESCHÄFTSFALLFREQ + MASSNAHMENTEILNAHME, 
+             family = "binomial", data = data)
 summary(model_alt)
+
+predicted_prob1 <- predict(model1, data, type="response")
+predicted_prob_alt <- predict(model_alt, data, type="response")
+
+# Checking ROC
+library(Epi)
+ROC(form = BESCHÄFTIGUNGSTAGE ~ GESCHLECHT_WEIBLICH + ALTERSGRUPPE + STAATENGRUPPE 
+    + AUSBILDUNG + BETREUUNGSPFLICHTEN + RGS_TYP
+    + BEEINTRÄCHTIGT + BERUFSGRUPPE + BESCHÄFTIGUNGSVERLAUF
+    + GESCHÄFTSFALLDAUER + GESCHÄFTSFALLFREQ + MASSNAHMENTEILNAHME, data=data,plot="ROC")
+
+# Confusion Matrix
+library(caret)
+class_prediction <-factor(ifelse(predicted_prob > 0.66, 1, 0))
+table(class_prediction)
+truth <- factor(ifelse(data$BESCHÄFTIGUNGSTAGE == ">=90 Tage", 1, 0))
+table(truth)
+confusionMatrix(class_prediction, truth)
+
+# Looking at variable effects
+library(effects)
+plot(allEffects(model1))
+
+# Checking model assumptions
+# 1. Normality of errors (qqplot)
+plot(model1, which=2)
+# 2. Constant variance (residual plots, tests)
+plot(model1, which=3)
+# 3. Independence of errors (sequence plot, DW test)
+plot(rstudent(model1), type='l')
+# 4. Outliers (leverage, Cooks distance)
+
+
+# Other models
+rpart::rpart()
+randomForest::randomForest()
+xgboost::xgboost()
