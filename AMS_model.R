@@ -4,6 +4,7 @@
 library(tidyverse)
 library(modelr)
 options(na.action = na.warn)
+options(scipen=100) # prevent scientific notion (e)
 
 # Load data --------------------------------------------------------------------
 data <- readRDS("dataJuSAW.rds")
@@ -161,14 +162,15 @@ summary(model_ams)
 data$prob_ams <- predict(model_ams, data, type="response")
 
 # Confusion Matrix -------------------------------------------------------------
-data$class_pred <-factor(ifelse(data$prob_ams > 0.66, 1, 0))
+data$class_pred <-ifelse(data$prob_ams > 0.66, 1, 0)
 table(data$class_pred)
-data$truth <- factor(ifelse(data$BESCHÄFTIGUNGSTAGE == ">=90 Tage", 1, 0))
+data$truth <- ifelse(data$BESCHÄFTIGUNGSTAGE == ">=90 Tage", 1, 0)
 table(data$truth)
 
 #find optimal cutoff probability to use to maximize accuracy
-optimal <- optimalCutoff(data$truth, data$class_pred)[1]
+optimal <- optimalCutoff(data$truth, data$prob_ams, optimiseFor = "misclasserror")[1]
 
+# Confusion matrix
 confusionMatrix(data$class_pred, data$truth)
 
 #calculate sensitivity
@@ -176,7 +178,7 @@ sensitivity(data$truth, data$class_pred)
 #calculate specificity
 specificity(data$truth, data$class_pred)
 #calculate total misclassification error rate
-misClassError(data$truth, data$class_pred, threshold=optimal)
+misClassError(data$truth, data$class_pred, threshold=0.66)
 
 # Checking ROC
 library(Epi)
@@ -198,6 +200,7 @@ plot(model1, which=3)
 plot(rstudent(model1), type='l')
 # 4. Outliers (leverage, Cooks distance)
 
+# Odds Ratios from AMS documentation ###########################################
 
 
 # Train alternativ models ------------------------------------------------------
@@ -209,89 +212,9 @@ model_alt <- glm(BESCHÄFTIGUNGSTAGE ~ GESCHLECHT_WEIBLICH + ALTERSGRUPPE + STAA
              family = "binomial", data = data)
 summary(model1)
 
-# Logistic regression model with all variables step-procedure
-
-# Restricted logistic regression model with all variables
-
-# Other models
-rpart::rpart()
-randomForest::randomForest()
-xgboost::xgboost()
 
 # Predictions
 predicted_prob_alt <- predict(model1, data, type="response")
 
 
 # Performance and Fairness Measures ############################################
-library(fairness)
-
-# Predictive Rate Parity
-res1 <- pred_rate_parity(data = data, outcome = "truth", outcome_base = "0", 
-                         group = "GESCHLECHT_WEIBLICH", probs = "prob_ams", cutoff = 0.66, base = "male")
-res1$Metric
-res1$Metric_plot
-res1$Probability_plot
-
-# Demographic Parity
-res_dem <- dem_parity(data = data, outcome = "truth", outcome_base = "0", 
-                         group = "GESCHLECHT_WEIBLICH", probs = "prob_ams", cutoff = 0.66, base = "male")
-res_dem$Metric
-res_dem$Metric_plot
-res_dem$Probability_plot
-
-# Proportional Parity
-res_prop <- prop_parity(data = data, outcome = "truth", outcome_base = "0", 
-                      group = "GESCHLECHT_WEIBLICH", probs = "prob_ams", cutoff = 0.66, base = "male")
-res_prop$Metric
-res_prop$Metric_plot
-
-# Equalized Odds
-res_eq <- equal_odds(data = data, outcome = "truth", outcome_base = "0", 
-                         group = "GESCHLECHT_WEIBLICH", probs = "prob_ams", cutoff = 0.66, base = "male")
-res_eq$Metric
-res_eq$Metric_plot
-res_eq$Probability_plot
-
-# Accuracy Parity
-res_acc <- acc_parity(data = data, outcome = "truth", outcome_base = "0", 
-                     group = "GESCHLECHT_WEIBLICH", probs = "prob_ams", cutoff = 0.66, base = "male")
-res_acc$Metric
-res_acc$Metric_plot
-res_acc$Probability_plot
-
-# False Negative Rate Parity
-res_fnr <- fnr_parity(data = data, outcome = "truth", outcome_base = "0", 
-                      group = "GESCHLECHT_WEIBLICH", probs = "predicted_prob1", cutoff = 0.66, base = "male")
-res_fnr$Metric
-res_fnr$Metric_plot
-
-# False Positive Rate Parity
-res_fpr <- fpr_parity(data = data, outcome = "truth", outcome_base = "0", 
-                      group = "GESCHLECHT_WEIBLICH", probs = "predicted_prob1", cutoff = 0.66, base = "male")
-res_fpr$Metric
-res_fpr$Metric_plot
-
-# Negative Predictive Value Parity
-res_npv <- npv_parity(data = data, outcome = "truth", outcome_base = "0", 
-                      group = "GESCHLECHT_WEIBLICH", probs = "predicted_prob1", cutoff = 0.66, base = "male")
-res_npv$Metric
-res_npv$Metric_plot
-
-# Specificity Parity
-res_sp <- spec_parity(data = data, outcome = "truth", outcome_base = "0", 
-                      group = "GESCHLECHT_WEIBLICH", probs = "predicted_prob1", cutoff = 0.66, base = "male")
-res_sp$Metric
-res_sp$Metric_plot
-
-# ROC AUC Parity
-res_auc <- roc_parity(data = data, outcome = "truth", 
-                      group = "GESCHLECHT_WEIBLICH", probs = "predicted_prob1", base = "male")
-res_auc$Metric
-res_auc$Metric_plot
-res_auc$ROCAUC_plot
-
-# Matthews correlation coefficient Parity
-res_mcc <- mcc_parity(data = data, outcome = "truth", outcome_base = "0", 
-                      group = "GESCHLECHT_WEIBLICH", probs = "predicted_prob1", cutoff = 0.66, base = "male")
-res_mcc$Metric
-res_mcc$Metric_plot

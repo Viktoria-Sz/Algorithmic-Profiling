@@ -1,14 +1,14 @@
-# DATA EXPLORATION #################################################################################
+# PREPARATTION #################################################################
 
-# Libraries ----------------------------------------------------------------------------------------
+# Libraries --------------------------------------------------------------------
 library(tidyverse)
 library(psych)
 library(corrplot) # use corrplot(cor(...)) for nice correlation plots
 
-# Load data ----------------------------------------------------------------------------------------
+# Load data --------------------------------------------------------------------
 data <- readRDS("dataJuSAW.rds")
 
-# Steps ============================================================================================
+# Steps ========================================================================
 # Steps for analysis
 # • Analysis for each variable
 # • Visualization for bivariate associations (e.g. Scatter‐plots & boxplots)
@@ -19,7 +19,7 @@ data <- readRDS("dataJuSAW.rds")
 # • Checking for diagnostics (residual analysis)
 
 
-# Exploring the data ===============================================================================
+# Exploring the data ===========================================================
 str(data)
 
 names(data)
@@ -31,7 +31,7 @@ numeric.only <-sapply(data,class)=='numeric'
 describe(data[,numeric.only])
 
 
-# Variable exploration =============================================================================
+# Variable exploration =========================================================
 attach(data)
 
 # Klarstellungen
@@ -461,4 +461,5 @@ table(SDT)
 table(SDT_t1)
 table(ges_status)
 
-
+# Save dataset =================================================================
+saveRDS(data1, "JuSAW_prepared.rds")
