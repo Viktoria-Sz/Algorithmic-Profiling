@@ -6,7 +6,7 @@ library(psych)
 library(corrplot) # use corrplot(cor(...)) for nice correlation plots
 
 # Load data --------------------------------------------------------------------
-data <- readRDS("dataJuSAW.rds")
+data <- readRDS("data/dataJuSAW.rds")
 
 # Steps ========================================================================
 # Steps for analysis
@@ -465,4 +465,4 @@ table(SDT_t1)
 table(ges_status)
 
 # Save dataset =================================================================
-saveRDS(data, "JuSAW_prepared.rds")
+saveRDS(data, "data/JuSAW_prepared.rds")

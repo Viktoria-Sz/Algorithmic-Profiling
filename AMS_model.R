@@ -7,7 +7,7 @@ options(na.action = na.warn)
 options(scipen=100) # prevent scientific notion (e)
 
 # Load data --------------------------------------------------------------------
-data <- readRDS("dataJuSAW.rds")
+data <- readRDS("data/dataJuSAW.rds")
 attach(data)
 
 # Data preparation for AMS -----------------------------------------------------
@@ -37,7 +37,7 @@ table(r_betreuungspflichten, female)
 table(kinder, female)
 table(kinder)
 
-data$BETREUUNGSPFLICHTEN_both <-factor(kinder, levels = c("ja", "nein"), labels =  c("ja", "nein"), ordered = FALSE)
+data$CHILDCARE_both <-factor(kinder, levels = c("ja", "nein"), labels =  c("ja", "nein"), ordered = FALSE)
 data$CHILDCARE <- ifelse(data$GENDER_female == "female" & data$CHILDCARE_both =="ja", "ja", "nein")
 data$CHILDCARE <- factor(data$CHILDCARE, ordered = FALSE)
 data$CHILDCARE_both <- relevel(data$CHILDCARE_both, ref = "nein")
@@ -58,10 +58,10 @@ table(shealth)
 table(lhealth) # wahrscheinlich beste Wahl
 table(longill) 
 data$IMPAIRMENT_order <-factor(lhealth, levels = c("ja stark", "ja ein wenig", "nein"), 
-                                   labels =  c("ja stark", "ja ein wenig", "nein"), ordered =  TRUE)
-data$IMPAIRMENT <-ifelse(data$IMPAIRMENT_order == "ja stark" | data$IMPAIRMENT_order == "ja ein wenig", "ja", "nein")
+                                   labels =  c("yes, very", "yes, a little", "no"), ordered =  TRUE)
+data$IMPAIRMENT <-ifelse(data$IMPAIRMENT_order == "yes, very" | data$IMPAIRMENT_order == "yes, a little", "yes", "no")
 data$IMPAIRMENT <- factor(data$IMPAIRMENT, ordered = FALSE)
-data$IMPAIRMENT <- relevel(data$IMPAIRMENT, ref = "nein")
+data$IMPAIRMENT <- relevel(data$IMPAIRMENT, ref = "no")
 is.ordered(data$IMPAIRMENT_order)
 is.ordered(data$IMPAIRMENT)
 
@@ -76,7 +76,7 @@ table(r_berufsgruppe_ams1)
 table(r_berufsgruppe)
 table(r_berufsgruppe_ams1, r_berufsgruppe) # Was ist mit 9? Wird nicht berücksichtigt im AMS Methoden paper
 data$OCCUPATIONGROUP_all <- factor(r_berufsgruppe_ams1, ordered = FALSE)
-data$OCCUPATION <- factor(r_berufsgruppe, ordered = FALSE)
+data$OCCUPATIONGROUP <- factor(r_berufsgruppe, ordered = FALSE)
 
 # WICHTIG: Für junge Leute unter 25:
 # Für diese Population werden die Merkmale STAATENGRUPPE, GESCHÄFTSFALLDAUER und BESCHÄFTIGUNGSVERLAUF nicht für die Schätzung verwendet.
@@ -94,7 +94,7 @@ table(r_monate_erw_j4voral, useNA = "always")
 # 0 = kein Geschäftsfall mit Dauer >= 180 Tage; 1 = 1 oder mehrere Geschäftsfälle mit Dauer >= 180 Tage -> halbes Jahr
 table(r_geschfalldau_voral)
 table(r_geschfalldau3m_voral)
-data$GESCHÄFTSFALLDAUER <- factor(r_geschfalldau_voral, levels = c(0, 1), labels = c("kein GF>=180", "GF>=180"), ordered = FALSE)
+data$BUSINESSCASEDUR <- factor(r_geschfalldau_voral, levels = c(0, 1), labels = c("kein GF>=180", "GF>=180"), ordered = FALSE)
 
 table(r_geschaeftsfall_j1voral, useNA = "always")
 table(r_geschaeftsfall_j2voral, useNA = "always")
@@ -139,7 +139,7 @@ data$EMPLOYMENTDAYS <- factor(r_besch, levels = c(0, 1), labels = c("<90 Tage", 
 table(data$EMPLOYMENTDAYS)
 
 # Save dataset =================================================================
-saveRDS(data, "JuSAW_prepared.rds")
+saveRDS(data, "data/JuSAW_prepared.rds")
 
 # AMS MODEL ####################################################################
 library(caret) # Confusion Matrix
@@ -153,8 +153,8 @@ library(InformationValue) # Optimal cutoff threshold
 # Train Original AMS logistic model with train-data ----------------------------
 model_ams <- glm(EMPLOYMENTDAYS ~ GENDER_female + STATEGROUP + AGEGROUP 
                  + EDUCATION + CHILDCARE + RGS
-                 + IMPAIRMENT + OCCUPATION + EMPLOYMENT
-                 + GESCHÄFTSFALLDAUER + BUSINESSCASEFREQ + SUPPORTMEASURE, 
+                 + IMPAIRMENT + OCCUPATIONGROUP + EMPLOYMENT
+                 + BUSINESSCASEDUR + BUSINESSCASEFREQ + SUPPORTMEASURE, 
                  family = "binomial", data = data)
 summary(model_ams)
 # What about missing values? -> Look at discriptives
@@ -186,8 +186,8 @@ misClassError(data$truth, data$class_pred, threshold=0.66)
 library(Epi)
 ROC(form = EMPLOYMENTDAYS ~ GENDER_female + AGEGROUP + STATEGROUP 
     + EDUCATION + CHILDCARE + RGS
-    + IMPAIRMENT + OCCUPATION + BESCHÄFTIGUNGSVERLAUF
-    + GESCHÄFTSFALLDAUER + BUSINESSCASEFREQ + SUPPORTMEASURE, data=data,plot="ROC")
+    + IMPAIRMENT + OCCUPATIONGROUP + BESCHÄFTIGUNGSVERLAUF
+    + BUSINESSCASEDUR + BUSINESSCASEFREQ + SUPPORTMEASURE, data=data,plot="ROC")
 
 # Looking at variable effects
 library(effects)
@@ -202,21 +202,40 @@ plot(model1, which=3)
 plot(rstudent(model1), type='l')
 # 4. Outliers (leverage, Cooks distance)
 
-# Odds Ratios from AMS documentation ###########################################
-
-
 # Train alternativ models ------------------------------------------------------
 # Logistic regression model with "better" AMS variables
 model_alt <- glm(EMPLOYMENTDAYS ~ GENDER_female + AGEGROUP + STATEGROUP 
-             + EDUCATION + CHILDCARE_both + RGS
-             + IMPAIRMENT + OCCUPATION_all + BESCHÄFTIGUNGSVERLAUF
-             + GESCHÄFTSFALLDAUER + BUSINESSCASEFREQ + SUPPORTMEASURE, 
-             family = "binomial", data = data)
+                 + EDUCATION + CHILDCARE_both + RGS
+                 + IMPAIRMENT + OCCUPATIONGROUP_all + BESCHÄFTIGUNGSVERLAUF
+                 + GESCHÄFTSFALLDAUER + BUSINESSCASEFREQ + SUPPORTMEASURE, 
+                 family = "binomial", data = data)
 summary(model1)
 
 
 # Predictions
 predicted_prob_alt <- predict(model1, data, type="response")
 
+# Odds Ratios from AMS documentation ###########################################
+# Kurzfristiges Kriterium: Partiell valide schätzbare jugendliche Population
+model_ams_OR <- glm(EMPLOYMENTDAYS ~ GENDER_female + AGEGROUP 
+                 + EDUCATION + CHILDCARE + RGS
+                 + IMPAIRMENT + OCCUPATIONGROUP 
+                 + BUSINESSCASEFREQ + SUPPORTMEASURE, 
+                 family = "binomial", data = data)
+summary(model_ams_OR)
+OR_coefs_youth <- c(-0.13, 0.09, 0.13, 0.0, 0.48, 0.40, -0.46, -0.10, -0.17, -0.15, 
+              -0.36, -0.03, 0.01, -0.02, -0.06, -0.21, -0.14)
+model_ams_OR$coefficients <- OR_coefs_youth
 
-# Performance and Fairness Measures ############################################
+# Predictions 
+data$prob_ams_OR <- predict(model_ams_OR, data, type="response")
+
+data$class_pred_OR <-ifelse(data$prob_ams_OR > 0.66, 1, 0)
+table(data$class_pred_OR)
+data$truth <- ifelse(data$EMPLOYMENTDAYS == ">=90 Tage", 1, 0)
+table(data$truth)
+
+# Confusion matrix
+confusionMatrix(data$class_pred, data$truth)
+
+

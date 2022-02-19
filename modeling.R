@@ -10,7 +10,7 @@ options(scipen=100) # prevent scientific notion (e)
 
 # Load data --------------------------------------------------------------------
 # load preperad dataset
-data <- readRDS("JuSAW_prepared.rds")
+data <- readRDS("data/JuSAW_prepared.rds")
 attach(data)
 
 # Load other scripts -----------------------------------------------------------

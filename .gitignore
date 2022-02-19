@@ -3,5 +3,6 @@
 
 MA_job-chances.Rproj
 
-dataJuSAW.csv
-dataJuSAW.rds
+data/dataJuSAW.csv
+data/dataJuSAW.rds
+data/JuSAW_prepared.rds
