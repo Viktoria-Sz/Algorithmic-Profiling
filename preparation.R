@@ -30,6 +30,9 @@ describe(data)
 numeric.only <-sapply(data,class)=='numeric'
 describe(data[,numeric.only])
 
+# data %>% 
+#   skimr::skim(dest, carrier) 
+
 
 # Variable exploration =========================================================
 attach(data)
@@ -462,4 +465,4 @@ table(SDT_t1)
 table(ges_status)
 
 # Save dataset =================================================================
-saveRDS(data1, "JuSAW_prepared.rds")
+saveRDS(data, "JuSAW_prepared.rds")
