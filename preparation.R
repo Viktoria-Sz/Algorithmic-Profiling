@@ -7,6 +7,7 @@ library(corrplot) # use corrplot(cor(...)) for nice correlation plots
 
 # Load data --------------------------------------------------------------------
 data <- readRDS("data/dataJuSAW.rds")
+attach(data)
 
 # Steps ========================================================================
 # Steps for analysis
@@ -18,6 +19,44 @@ data <- readRDS("data/dataJuSAW.rds")
 # • Checking for collinearity
 # • Checking for diagnostics (residual analysis)
 
+
+# Plot functions ===============================================================
+df_t0t1 <- function(data, variable, variable_t1){
+  var <- enquo(variable)
+  var_t1 <- enquo(variable_t1)
+  
+  var_name <- as_label(var)
+  var_t1_name <- as_label(var_t1)
+  
+  df_t0t1 <- data %>%
+    select(!!var, !!var_t1) %>%
+    pivot_longer(c(expr(!!var_name), expr(!!var_t1_name)), names_to = "time", values_to= expr(!!var_name), values_drop_na = TRUE)
+  
+  df_t0t1$time <- factor(df_t0t1$time, levels = c(expr(!!var_name), expr(!!var_t1_name)), labels =  c("t0", "t1"), ordered = FALSE) %>%
+    relevel(ref = "t0")
+  
+  return(df_t0t1)
+}
+# df_t0t1(data, lottery, lottery_t1)
+# plot_prob(df_t0t1(data, lottery, lottery_t1), lottery)
+
+plot_prob <- function(data, variable){
+  var <- enquo(variable) # Variable verwendbar machen in ggplot
+  
+  ggplot(data, aes(x = time, fill = !!var)) +
+    geom_bar(position = "fill") +
+    theme_bw(base_size = 15)
+}
+# plot_prob(lottery_df, lottery) 
+
+plot_count <- function(data, variable){
+  var <- enquo(variable) # Variable verwendbar machen in ggplot
+  
+  ggplot(data, aes(x = !!var, fill = time)) +
+    geom_bar(position = position_dodge(width = 0.5)) +
+    theme_bw(base_size = 15)
+}
+# plot_count(lottery_df, lottery) 
 
 # Exploring the data ===========================================================
 str(data)
@@ -35,7 +74,6 @@ describe(data[,numeric.only])
 
 
 # Variable exploration =========================================================
-attach(data)
 
 # Klarstellungen
 # Codebuch für survey Variablen
@@ -54,13 +92,14 @@ attach(data)
 
 # General ------------------------------------------------------------------------------------------
 case
-table(ams_t1) # ??
+table(ams_t1) # Derzeitiger Status: beim AMS gemeldet?
 table(month_of_interview) # Monat erstes Interview?
 table(month_of_interview_t1) # Monat zweites Interview ca. ein Jahr später
 
 # Job ----------------------------------------------------------------------------------------------
 # Job at second interview
 table(job_t1)
+table(r_besch, job_t1) # Kombination aus beidem für eine neue Variable?
 
 # How many were employed before/ for at least 3 months?
 table(job3) # 3 Monate Job gehabt?
@@ -86,20 +125,18 @@ table(vertrag_l_t1)
 table(vertrag_t1)
 
 table(firmsize)
-table(firmsize_l_t1)
-table(firmsize_t1)
 
 # Why did it end?
 table(endlastjob)
 table(endlastjob_t1)
-table(endreason) # Unterschied zu vorherigen vars?
+table(endreason) # Zusammenfassung
 
 # Unemployment experience
 table(ALexp)
-table(exp) # nachschauen -> Erwerbstätigkeit Lifetime Gesamtdauer?
+table(exp) #  Erwerbstätigkeit Lifetime Gesamtdauer - Summe aus Jahren und Monaten Erfahrung - in Jahren
 
 # Next job -----------------------------------------------------------------------------------------
-table(zusage)
+table(zusage) #!!! Genauer analysiern, eventuell alle mit Zusage rausnehmen
 table(zusage_t1)
 
 # Job search
@@ -109,11 +146,9 @@ table(suche_specific)
 table(suchintens)
 
 
-
 # Jobattributpräferenz -----------------------------------------------------------------------------
 # Motivation
 table(effortmot)
-table(effortmot_t1)
 
 table(jap_jobsec)
 table(jap_income)
@@ -128,42 +163,28 @@ table(jap_interest)
 table(jap_social)
 table(jap_help)
 
-table(jap_jobsec_t1)
-table(jap_income_t1)
-table(jap_career_t1)
-table(jap_anerkennung_t1)
-table(jap_freizeit_t1)
-table(jap_independent_t1)
-table(jap_creative_t1)
-table(jap_selfdevel_t1)
-table(jap_learnopp_t1)
-table(jap_interest_t1)
-table(jap_social_t1)
-table(jap_help_t1)
+data$intrins <- (jap_selfdevel +jap_learnopp +jap_independent+ jap_creative +jap_interest)/5
+data$extrins <- (jap_jobsec+jap_income +jap_career + jap_anerkennung)/4 #values 1-4
+table(data$intrins)
 
 # Work Attitudes
 table(lottery)
-table(lottery_t1)
 table(leisurevalue)
 table(familyvalue)
-table(leisurevalue_t1)
-table(familyvalue_t1)
 table(lifesat)
-table(lifesat_t1)
 table(prefcat)
+
+table(fertint) # Haben Sie vor, in den nächsten drei Jahren ein (weiteres) Kind zu bekommen?
+table(fertint_t1)
 
 # Sinn von Arbeit: Geld verdienen, dazugehören, interessante Tätigkeiten ausführen
 table(a_instrumental)
 table(a_belong)
 table(a_interest)
 
-table(a_instrumental_t1)
-table(a_belong_t1)
-table(a_interest_t1)
-
-# Reservationslohn?
-table(reserve) # Vielleicht wie viel Geld Reserve? Reservationslohn?
-table(reserveDK)
+# Reservationslohn (Nettoverdienst)
+table(reserve) 
+table(reserveDK) # Don't know
 
 # Personality stuff  -------------------------------------------------------------------------------
 # Selbstwert
@@ -174,17 +195,8 @@ table(sw_zukunftsangst)
 table(sw_mitmirzufrieden)
 table(sw_selbstwert) # nochmal nachschauen wieso so komische Zahlen rauskommen - zusammengeseztes Ktiterium?
 
-table(sw_träumer_t1)
-table(sw_wertlos_t1)
-table(sw_selbstzweifel_t1)
-table(sw_zukunftsangst_t1)
-table(sw_mitmirzufrieden_t1)
-table(sw_selbstwert_t1)
-
-table(risk) # bedeutet, dass Sie sich als „gar nicht risikobereit“ einschätzen und 10 bedeutet, dass Sie sich als „sehr risikobereit“
+table(risk) # Risikobereitschaft
 table(trust)
-table(risk_t1) 
-table(trust_t1)
 
 # Big Five Personality
 table(p_introvertiert) # Was ist 1 und was ist 5?
@@ -201,7 +213,7 @@ table(p_insecure)
 table(p_fantasie)
 table(p_tüchtig)
 
-table(gewissenh) # Zusammengesetzes Kriterium?
+table(gewissenh) # p_tüchtig + p_gründlich + p_goaloriented)/3
 
 # locus of control
 table(locus_self)
@@ -220,34 +232,17 @@ table(dep_nervös)
 table(dep_ängstlich)
 table(dep_traurig)
 table(dep_energie)
-table(depress) # Nochmal nachschauen wie die berechnet werden
-table(depress_WHO)
-table(depress10_WHO)
-table(depressrisk_WHO)
+table(depress) # Summenindex ((6-dep_gelassen)+dep_einsam+dep_ärgerlich+dep_niedergeschlagen+(6-dep_glücklich)+dep_nervös+dep_ängstlich+dep_traurig+(6-dep_energie)) divided by 9 - 1 to 5
+table(depress_WHO) # Sumenindex wie depress, auf einer anderen Skala 0-36
+table(depress10_WHO) # 0 to 10
+table(depressrisk_WHO) # Indikator für Risiko wenn depress_WHO >18
 
-table(dep_gelassen_t1)
-table(dep_einsam_t1)
-table(dep_ärgerlich_t1)
-table(dep_niedergeschlagen_t1)
-table(dep_glücklich_t1)
-table(dep_nervös_t1)
-table(dep_ängstlich_t1)
-table(dep_traurig_t1)
-table(dep_energie_t1)
-table(depress_t1)
-table(depress_WHO_t1)
-table(depress10_WHO_t1)
-table(depressrisk_WHO_t1)
-
-depress_d
+depress_d # Differenz Summenindex Welle2-Welle 1, N=584 nur vollständige Angaben
 
 # Behavior -----------------------------------------------------------------------------------
 table(alkohol)
-table(alccut) # was war das nochmal?
-table(alkohol_t1)
-table(alccut_t1)
+table(alccut) # Haben Sie schon einmal das Gefühl gehabt, dass Sie Ihren Alkoholkonsum verringern sollten?
 table(rauchen)
-table(rauchen_t1)
 table(schlaf) # Was bedeuten Auswahlmöglichkeiten?
 table(sport)
 table(ernährung)
@@ -257,27 +252,13 @@ table(fz_internetsurfen)
 table(fz_musikhören)
 table(fz_lesen)
 
-table(schlaf_t1)
-table(sport_t1)
-table(ernährung_t1)
-table(fz_fernsehen_video_t1)
-table(fz_computerspiele_t1)
-table(fz_internetsurfen_t1)
-table(fz_musikhören_t1)
-table(fz_lesen_t1)
-
 # Time structure --------------------------------------------------------------------------------
-# nochmal nachschauen was das jahoda zeug ist und was ist das p
+# nochmal nachschauen was das jahoda zeug ist und was ist das p - p heißt vergangen
 table(jahoda_timestruc_aufst)
 table(jahoda_timestruc_termine)
 table(jahoda_timestruc_tag)
 table(jahoda_timestruc_bett)
 table(jahoda_timestruc)
-table(jahoda_timestruc_aufst_p)
-table(jahoda_timestruc_termine_p)
-table(jahoda_timestruc_tag_p)
-table(jahoda_timestruc_bett_p)
-table(jahoda_timestruc_p)
 
 # Social
 table(jahoda_social_treff)
@@ -285,19 +266,11 @@ table(jahoda_social_einsam)
 table(jahoda_social_kolleg)
 table(jahoda_social)
 table(jahoda_purpose_lang)
-table(jahoda_social_treff_p)
-table(jahoda_social_einsam_p)
-table(jahoda_social_kolleg_p)
-table(jahoda_social_p)
 
 table(jahoda_purpose_zeit)
-table(jahoda_purpose_lang_p)
-table(jahoda_purpose_zeit_p)
 
 table(jahoda_stigma_unan)
 table(jahoda_stigma_sorg)
-table(jahoda_stigma_unan_p)
-table(jahoda_stigma_sorg_p)
 
 table(jahoda_depress_down_p)
 table(jahoda_depress_interest_p)
@@ -312,19 +285,13 @@ table(jahoda_finanz_p)
 table(socialmeet)
 table(socialcomp) # In Relation zu was?
 table(freunde)
-table(socialmeet_t1)
-table(socialcomp_t1)
-table(freunde_t1)
 table(soc_konflikt) # nachschauen
 table(soc_versteh)
 
 # Health
 table(shealth) # Wie schätzen Sie Ihren allgemeinen Gesundheitszustand ein?
-table(shealth_t1)
 table(lhealth) # Werden Sie bei Ihren täglichen Aktivitäten in irgendeiner Weise von einer längeren Krankheit oder einer Behinderung beeinträchtigt?
-table(lhealth_t1)
 table(longill) # Kam es im letzten Jahr vor, dass Sie länger als 6 Wochen ununterbrochen krank waren?
-table(longill_t1)
 
 # Finances
 table(finanzgut)
@@ -340,8 +307,8 @@ table(e_unterstütz_t1)
 table(ausb_t1)
 table(eduhöchst4)
 table(eduhöchst4_t1)
-table(notede) # NOte?
-table(notema)
+table(notede) # Schulnote letztes Zeugnis: Deutsch
+table(notema) # Schulnote letztes Zeugnis: Mathematik
 
 table(elternschulint)
 table(yrsedu)
@@ -349,15 +316,15 @@ table(edumore)
 table(abbruch01)
 
 # Ability ------------------------------------------------------------------------------------------
+table(SDT)  # Symbol Zahlen Test           
+table(tiere_no) 
 table(recall)
-table(recall_t1)
 table(rechnencorr1) 
 table(rechnencorr2)
 table(kast1corra)
 table(kast2corra)
 table(drecall)
-table(drecall_t1)
-
+# Ability Variable Zusammenfassung?
 
 # Characteristics ----------------------------------------------------------------------------------
 # Age
@@ -368,8 +335,8 @@ table(female)
 
 # Migration background
 table(birthAT)
-table(birthAT_v)
-table(birthAT_m)
+table(birthAT_v) # Vater: Geburtsland Österreich
+table(birthAT_m) # Mutter: Geburtsland Österreich
 table(mighint12g_new)
 table(migklasse)
 table(schuleat) # nachschauen
@@ -390,6 +357,8 @@ table(diskrim_age)
 table(diskrim_sex)
 table(diskrim_phy)
 table(diskrim_other)
+
+table(ges_status) # Gesellschaftlicher Status - Position in Hierarchie
 
 
 # Relationships -------------------------------------------------------------------------------
@@ -437,32 +406,27 @@ table(hhalleine)
 table(hhsonst)
 table(hhsize)
 
-table(hhvater_t1)
-table(hhstiefvater_t1)
-table(hhmutter_t1)
-table(hhstiefmutter_t1)
-table(hhpartner_t1)
-table(hhkinder_t1)
-table(hhkinder, female, r_betreuungspflichten_t1)
-table(hhkinderpartner_t1)
-table(hhgeschwister_t1)
-table(hhgroßeltern_t1)
-table(hhwg_t1)
-table(hhalleine_t1)
-table(hhsonst_t1)
-table(hhsize_t1)
-
-table(tiere_no) # so viele Tiere??
-table(tiere_no_t1)
-
-
-# Frage??
-table(fertint)
-table(fertint_t1)
-
-table(SDT)             
-table(SDT_t1)
-table(ges_status)
 
 # Save dataset =================================================================
 saveRDS(data, "data/JuSAW_prepared.rds")
+
+
+# t0-t1 Plot Barplott ##########################################################
+table(lottery)
+table(lottery_t1)
+
+lottery_df <- data %>%
+  select(lottery, lottery_t1) %>%
+  pivot_longer(c("lottery", "lottery_t1"), names_to = "time", values_to="lottery", values_drop_na = TRUE)
+lottery_df$time <- factor(lottery_df$time, levels = c("lottery", "lottery_t1"), labels =  c("t0", "t1"), ordered = FALSE) %>%
+  relevel(ref = "t0")
+
+ggplot(lottery_df, aes(x = lottery, fill = time)) +
+  geom_bar(position = position_dodge(width = 0.5)) +
+  #scale_alpha_discrete(range = c(0.5,1)) +
+  theme_bw(base_size = 15)
+
+ggplot(lottery_df, aes(x = time, fill = lottery)) +
+  geom_bar(position = "fill") +
+  theme_bw(base_size = 15)
+

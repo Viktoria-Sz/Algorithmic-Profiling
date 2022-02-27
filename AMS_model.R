@@ -204,16 +204,16 @@ plot(rstudent(model1), type='l')
 
 # Train alternativ models ------------------------------------------------------
 # Logistic regression model with "better" AMS variables
-model_alt <- glm(EMPLOYMENTDAYS ~ GENDER_female + AGEGROUP + STATEGROUP 
+model_exp <- glm(EMPLOYMENTDAYS ~ GENDER_female + AGEGROUP + STATEGROUP 
                  + EDUCATION + CHILDCARE_both + RGS
                  + IMPAIRMENT + OCCUPATIONGROUP_all + EMPLOYMENT
-                 + GESCHÄFTSFALLDAUER + BUSINESSCASEFREQ + SUPPORTMEASURE, 
+                 + BUSINESSCASEDUR + BUSINESSCASEFREQ + SUPPORTMEASURE, 
                  family = "binomial", data = data)
-summary(model1)
+summary(model_exp)
 
 
 # Predictions
-predicted_prob_alt <- predict(model1, data, type="response")
+predicted_prob_alt <- predict(model_exp, data, type="response")
 
 # Odds Ratios from AMS documentation ###########################################
 # Kurzfristiges Kriterium: Partiell valide schätzbare jugendliche Population
