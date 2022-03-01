@@ -9,7 +9,6 @@ library(corrplot) # use corrplot(cor(...)) for nice correlation plots
 data <- readRDS("data/dataJuSAW.rds")
 attach(data)
 
-# Steps ========================================================================
 # Steps for analysis
 # • Analysis for each variable
 # • Visualization for bivariate associations (e.g. Scatter‐plots & boxplots)
@@ -58,13 +57,13 @@ plot_count <- function(data, variable){
 }
 # plot_count(lottery_df, lottery) 
 
+################################################################################
 # Exploring the data ===========================================================
 str(data)
 
 names(data)
 summary(data)
 describe(data)
-
 
 numeric.only <-sapply(data,class)=='numeric'
 describe(data[,numeric.only])
@@ -76,41 +75,206 @@ describe(data[,numeric.only])
 # Variable exploration =========================================================
 
 # Klarstellungen
-# Codebuch für survey Variablen
-# t0 Zeitpunkt erstes Interview -> month
-# t1 Zeitpunkt zweites Interview -> ein Jahr später month?
-# Was bedeutet l?
-# Nur r_ Variablen sind aus den Registerdaten?
-# r_betreuungspflichten registerdaten weniger als kinder
 
 
 # To Dos
-# AMS Model nachbilden
-# Relative Angaben für t0-t1 Unterschiede - bzw. Veränderungen irgendwie darstellen
 # Korrelationsmatrix mit Job?
 
 
-# General ------------------------------------------------------------------------------------------
+# General ======================================================================
 case
 table(ams_t1) # Derzeitiger Status: beim AMS gemeldet?
 table(month_of_interview) # Monat erstes Interview?
 table(month_of_interview_t1) # Monat zweites Interview ca. ein Jahr später
 
-# Job ----------------------------------------------------------------------------------------------
+# Altersgruppe entfällt, da alle unter 30 --------------------------------------
+# the characteristic AGE GROUP is redefined: less than 20 years (0), 20 to 24 years (20).
+table(ageg)
+data$AGEGROUP <- factor(ageg)
+table(data$AGEGROUP)
+
+# GESCHLECHT_WEIBLICH: Geschlecht weiblich, mit 0= männlich, 1=weiblich --------
+table(r_geschlecht)
+table(female, r_geschlecht) # lieber female verwenden, hat weniger missings
+table(female)
+data$GENDER_female <- factor(female, levels = c("0", "1"), labels = c("male", "female"), ordered = FALSE)
+table(data$GENDER_female)
+
+# Children ---------------------------------------------------------------------
+# Betreuungspflichten (nur für Frauen)
+table(r_betreuungspflichten)
+table(r_betreuungspflichten, kinder) 
+table(r_betreuungspflichten, female)
+table(kinder, female)
+table(kinder)
+
+data$CHILDCARE_both <-factor(kinder, levels = c("ja", "nein"), labels =  c("ja", "nein"), ordered = FALSE)
+data$CHILDCARE <- ifelse(data$GENDER_female == "female" & data$CHILDCARE_both =="ja", "ja", "nein")
+data$CHILDCARE <- factor(data$CHILDCARE, ordered = FALSE)
+data$CHILDCARE_both <- relevel(data$CHILDCARE_both, ref = "nein")
+data$CHILDCARE <- relevel(data$CHILDCARE, ref = "nein")
+table(data$CHILDCARE_both)
+table(data$CHILDCARE)
+table(data$CHILDCARE, data$GENDER_female)
+table(data$CHILDCARE_both, data$GENDER_female)
+
+# Health -----------------------------------------------------------------------
+table(shealth) # Wie schätzen Sie Ihren allgemeinen Gesundheitszustand ein?
+table(lhealth) # Werden Sie bei Ihren täglichen Aktivitäten in irgendeiner Weise von einer längeren Krankheit oder einer Behinderung beeinträchtigt?
+table(longill) # Kam es im letzten Jahr vor, dass Sie länger als 6 Wochen ununterbrochen krank waren?
+
+# Beeinträchtigt
+table(shealth)
+table(lhealth) # wahrscheinlich beste Wahl
+table(longill) 
+data$IMPAIRMENT_order <-factor(lhealth, levels = c("ja stark", "ja ein wenig", "nein"), 
+                               labels =  c("yes, very", "yes, a little", "no"), ordered =  TRUE)
+data$IMPAIRMENT <-ifelse(data$IMPAIRMENT_order == "yes, very" | data$IMPAIRMENT_order == "yes, a little", "yes", "no")
+data$IMPAIRMENT <- factor(data$IMPAIRMENT, ordered = FALSE)
+data$IMPAIRMENT <- relevel(data$IMPAIRMENT, ref = "no")
+is.ordered(data$IMPAIRMENT_order)
+is.ordered(data$IMPAIRMENT)
+
+# Was machen mit den den "keine Angabe" Leuten?
+table(data$IMPAIRMENT_order)
+table(data$IMPAIRMENT_order, lhealth, useNA = "always")
+ordered(data$IMPAIRMENT_order)
+table(data$IMPAIRMENT)
+
+# Migration background ---------------------------------------------------------
+table(birthAT)
+table(birthAT_v) # Vater: Geburtsland Österreich
+table(birthAT_m) # Mutter: Geburtsland Österreich
+table(mighint12g_new)
+table(migklasse)
+table(schuleat) # nachschauen
+table(deutsch5)
+table(deutschpex) # nachschauen
+
+# Staatengruppe
+table(r_staatengruppe)  
+data$STATEGROUP <- factor(r_staatengruppe, levels = c("AUT", "DRITT", "EU"), labels =  c("AUT", "DRITT", "EU"), ordered = FALSE)
+table(data$STATEGROUP)
+
+table(birthAT)
+table(birthAT_v)
+table(birthAT_m)
+table(mighint12g_new)
+
+# Religion
+table(relig)
+table(relig2) # Wie wichtig ist Religion
+
+# RGS Typ ----------------------------------------------------------------------
+table(r_rgstyp)
+data$RGS <-factor(r_rgstyp, levels = c("1", "2", "3", "4"), labels =  c("1", "2", "3", "4"), ordered = FALSE)
+is.ordered(data$RGS)
+table(data$RGS)
+
+
+# Hard Skills ==================================================================
+# Education --------------------------------------------------------------------
+table(ausb_t1)
+table(data$eduhöchst4)
+table(eduhöchst4_t1)
+table(notede) # Schulnote letztes Zeugnis: Deutsch
+table(notema) # Schulnote letztes Zeugnis: Mathematik
+
+table(elternschulint)
+table(yrsedu)
+table(edumore)
+table(abbruch01)
+
+# AUSBILDUNG: Ausbildung
+table(r_ausbildung) 
+data$EDUCATION <- factor(data$r_ausbildung, levels = c("L", "M", "P"), labels =  c("L", "M", "P"), ordered = FALSE)
+data$EDUCATION <- relevel(data$EDUCATION, ref = "P")
+table(data$EDUCATION, useNA = "always")
+data <- subset(data, !is.na(EDUCATION))
+
+# Ability ----------------------------------------------------------------------
+table(SDT)  # Symbol Zahlen Test           
+table(tiere_no) 
+table(recall)
+table(rechnencorr1) 
+table(rechnencorr2)
+table(kast1corra)
+table(kast2corra)
+table(drecall)
+# Ability Variable Zusammenfassung?
+
+# Job --------------------------------------------------------------------------
+# Abhängige Variable kurzfristiges Kriterium
+# innerhalb von 7 Monaten nach "Meilenstein" insgesamt 90 Tage in ungeförderter Beschäftigung stehend (1), sonst (0)
+table(r_besch)
+data$EMPLOYMENTDAYS <- factor(r_besch, levels = c(0, 1), labels = c("<90 Tage", ">=90 Tage"), ordered = FALSE)
+table(data$EMPLOYMENTDAYS, useNA = "always") # cannot use NAs
+data <- subset(data, !is.na(EMPLOYMENTDAYS))
+data$truth <- ifelse(data$EMPLOYMENTDAYS == ">=90 Tage", 1, 0)
+table(data$truth)
 # Job at second interview
 table(job_t1)
 table(r_besch, job_t1) # Kombination aus beidem für eine neue Variable?
 
-# How many were employed before/ for at least 3 months?
-table(job3) # 3 Monate Job gehabt?
-table(dauer_längster) # Keine 249 Personen -> was sind das für Kategorien? In welcher Einheit ist das?
+# Berufsgruppe Produktion oder Service
+table(r_berufsgruppe_ams1)
+table(r_berufsgruppe)
+table(r_berufsgruppe_ams1, r_berufsgruppe) # Was ist mit 9? Wird nicht berücksichtigt im AMS Methoden paper
+data$OCCUPATIONGROUP_all <- factor(r_berufsgruppe_ams1, ordered = FALSE)
+data$OCCUPATIONGROUP <- factor(r_berufsgruppe, ordered = FALSE)
 
+# Beschäftigungsverlauf
+# BESCHÄFTIGUNGSVERLAUF: Beschäftigungsverlauf vor AL
+table(r_beschverl_voral)
+data$EMPLOYMENT <- factor(r_beschverl_voral, levels = c(1, 2), labels = c(">75%", "<75%"), ordered = FALSE)
+table(data$EMPLOYMENT)
+
+table(r_monate_erw_j1voral, useNA = "always")
+table(r_monate_erw_j2voral, useNA = "always")
+table(r_monate_erw_j3voral, useNA = "always")
+table(r_monate_erw_j4voral, useNA = "always")
+
+# Unemployment experience
+table(ALexp)
+table(exp) #  Erwerbstätigkeit Lifetime Gesamtdauer - Summe aus Jahren und Monaten Erfahrung - in Jahren
+
+# Geschäftsfalldauer
+# 0 = kein Geschäftsfall mit Dauer >= 180 Tage; 1 = 1 oder mehrere Geschäftsfälle mit Dauer >= 180 Tage -> halbes Jahr
+table(r_geschfalldau_voral)
+table(r_geschfalldau3m_voral)
+data$BUSINESSCASEDUR <- factor(r_geschfalldau_voral, levels = c(0, 1), labels = c("kein GF>=180", "GF>=180"), ordered = FALSE)
+
+table(r_geschaeftsfall_j1voral, useNA = "always")
+table(r_geschaeftsfall_j2voral, useNA = "always")
+table(r_geschaeftsfall_j3voral, useNA = "always")
+table(r_geschaeftsfall_j4voral, useNA = "always")
+
+# Geschäftsfallfrequenz
+table(r_geschfallfreq_voral)
+data$BUSINESSCASEFREQ <- factor(r_geschfallfreq_voral)
+data$BUSINESSCASEFREQ_order <- factor(r_geschfallfreq_voral, levels = c(0, 1, 2, 3),  ordered = TRUE)
+table(data$BUSINESSCASEFREQ_order)
+is.ordered(data$BUSINESSCASEFREQ_order)
+
+# Maßnahmenteilnahme
+table(r_maßnahmenteilnahme)
+data$SUPPORTMEASURE <- factor(r_maßnahmenteilnahme, levels = c(0, 1, 2, 3), 
+                              labels = c("kM", "min 1 unterst.", "min 1 qual", "min 1 Bförd"), ordered = FALSE)
+data$SUPPORTMEASURE_order <- factor(data$SUPPORTMEASURE, ordered = TRUE)
+table(data$SUPPORTMEASURE_order)
+is.ordered(data$SUPPORTMEASURE_order)
+
+# Letzter Job Charakteristika --------------------------------------------------
 # What job was the last job and what contract?
 table(statuslastjob)
 table(angest_level_l) 
 table(beruf_letzt_isco1_t0)
 table(beruf_letzt_isco1_t1) # Ist hiermit ein Job zwischen t0 und t1 gemeint, der aber schon wieder beendet ist?
 table(beruf_isco1_t1) # Unterschied zu vorheriger Variable?
+
+# How many were employed before/ for at least 3 months?
+table(job3) # 3 Monate Job gehabt?
+table(dauer_längster) # Keine 249 Personen -> was sind das für Kategorien? In welcher Einheit ist das?
 
 table(match)
 table(match_l_t1)
@@ -131,9 +295,6 @@ table(endlastjob)
 table(endlastjob_t1)
 table(endreason) # Zusammenfassung
 
-# Unemployment experience
-table(ALexp)
-table(exp) #  Erwerbstätigkeit Lifetime Gesamtdauer - Summe aus Jahren und Monaten Erfahrung - in Jahren
 
 # Next job -----------------------------------------------------------------------------------------
 table(zusage) #!!! Genauer analysiern, eventuell alle mit Zusage rausnehmen
@@ -145,8 +306,8 @@ table(vorstell_no)
 table(suche_specific)   
 table(suchintens)
 
-
-# Jobattributpräferenz -----------------------------------------------------------------------------
+# Soft Skilss ==================================================================
+# Jobattributpräferenz ---------------------------------------------------------
 # Motivation
 table(effortmot)
 
@@ -186,7 +347,7 @@ table(a_interest)
 table(reserve) 
 table(reserveDK) # Don't know
 
-# Personality stuff  -------------------------------------------------------------------------------
+# Personality ------------------------------------------------------------------
 # Selbstwert
 table(sw_träumer) 
 table(sw_wertlos)
@@ -239,7 +400,7 @@ table(depressrisk_WHO) # Indikator für Risiko wenn depress_WHO >18
 
 depress_d # Differenz Summenindex Welle2-Welle 1, N=584 nur vollständige Angaben
 
-# Behavior -----------------------------------------------------------------------------------
+# Behavior ---------------------------------------------------------------------
 table(alkohol)
 table(alccut) # Haben Sie schon einmal das Gefühl gehabt, dass Sie Ihren Alkoholkonsum verringern sollten?
 table(rauchen)
@@ -252,7 +413,7 @@ table(fz_internetsurfen)
 table(fz_musikhören)
 table(fz_lesen)
 
-# Time structure --------------------------------------------------------------------------------
+# Time structure ---------------------------------------------------------------
 # nochmal nachschauen was das jahoda zeug ist und was ist das p - p heißt vergangen
 table(jahoda_timestruc_aufst)
 table(jahoda_timestruc_termine)
@@ -288,10 +449,6 @@ table(freunde)
 table(soc_konflikt) # nachschauen
 table(soc_versteh)
 
-# Health
-table(shealth) # Wie schätzen Sie Ihren allgemeinen Gesundheitszustand ein?
-table(lhealth) # Werden Sie bei Ihren täglichen Aktivitäten in irgendeiner Weise von einer längeren Krankheit oder einer Behinderung beeinträchtigt?
-table(longill) # Kam es im letzten Jahr vor, dass Sie länger als 6 Wochen ununterbrochen krank waren?
 
 # Finances
 table(finanzgut)
@@ -302,50 +459,6 @@ table(efinanzgut)
 table(efinanzschlecht)
 table(e_unterstütz)
 table(e_unterstütz_t1)
-
-# Education ----------------------------------------------------------------------------------------
-table(ausb_t1)
-table(eduhöchst4)
-table(eduhöchst4_t1)
-table(notede) # Schulnote letztes Zeugnis: Deutsch
-table(notema) # Schulnote letztes Zeugnis: Mathematik
-
-table(elternschulint)
-table(yrsedu)
-table(edumore)
-table(abbruch01)
-
-# Ability ------------------------------------------------------------------------------------------
-table(SDT)  # Symbol Zahlen Test           
-table(tiere_no) 
-table(recall)
-table(rechnencorr1) 
-table(rechnencorr2)
-table(kast1corra)
-table(kast2corra)
-table(drecall)
-# Ability Variable Zusammenfassung?
-
-# Characteristics ----------------------------------------------------------------------------------
-# Age
-table(ageg)
-
-# Gender
-table(female)
-
-# Migration background
-table(birthAT)
-table(birthAT_v) # Vater: Geburtsland Österreich
-table(birthAT_m) # Mutter: Geburtsland Österreich
-table(mighint12g_new)
-table(migklasse)
-table(schuleat) # nachschauen
-table(deutsch5)
-table(deutschpex) # nachschauen
-
-# Religion
-table(relig)
-table(relig2) # Wie wichtig ist Religion
 
 # Discrimination
 table(diskrim)
@@ -360,14 +473,10 @@ table(diskrim_other)
 
 table(ges_status) # Gesellschaftlicher Status - Position in Hierarchie
 
-
-# Relationships -------------------------------------------------------------------------------
+# Relationships ----------------------------------------------------------------
 # Relationship
 table(beziehung)
 table(beziehung_t1)
-
-# Children
-table(kinder) 
 
 # Siblings
 table(geschwist)
@@ -407,11 +516,13 @@ table(hhsonst)
 table(hhsize)
 
 
+
 # Save dataset =================================================================
 saveRDS(data, "data/JuSAW_prepared.rds")
 
 
-# t0-t1 Plot Barplott ##########################################################
+# RESTE ########################################################################
+# t0-t1 Plot Barplott ----------------------------------------------------------
 table(lottery)
 table(lottery_t1)
 

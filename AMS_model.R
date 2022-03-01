@@ -2,7 +2,6 @@
 
 # Libraries --------------------------------------------------------------------
 library(tidyverse)
-library(modelr)
 options(na.action = na.warn)
 options(scipen=100) # prevent scientific notion (e)
 
