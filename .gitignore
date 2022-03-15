@@ -1,8 +1,7 @@
-
 .Rproj.user/
-
 MA_job-chances.Rproj
-
 data/dataJuSAW.csv
 data/dataJuSAW.rds
 data/JuSAW_prepared.rds
+data
+report.html
