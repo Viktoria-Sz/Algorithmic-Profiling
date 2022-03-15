@@ -152,9 +152,9 @@ library(InformationValue) # Optimal cutoff threshold
 # Split in Training and Test data ----------------------------------------------
 
 # Train Original AMS logistic model with train-data ----------------------------
-model_ams <- glm(EMPLOYMENTDAYS ~ GENDER_female + STATEGROUP + AGEGROUP 
-                 + EDUCATION + CHILDCARE + RGS
-                 + IMPAIRMENT + OCCUPATIONGROUP + EMPLOYMENT
+model_ams <- glm(EMPLOYMENTDAYS ~ GENDER_female + STATEGROUP
+                 + EDUCATION + CHILDCARE 
+                 + IMPAIRMENT_strong + OCCUPATIONGROUP + EMPLOYMENT
                  + BUSINESSCASEDUR + BUSINESSCASEFREQ + SUPPORTMEASURE, 
                  family = "binomial", data = data)
 summary(model_ams)
@@ -168,10 +168,11 @@ data$prob_ams <- predict(model_ams, data, type="response")
 data$class_pred <-ifelse(data$prob_ams > 0.66, 1, 0)
 table(data$class_pred)
 data$truth <- ifelse(data$EMPLOYMENTDAYS == ">=90 Tage", 1, 0)
+data$truth <- ifelse(is.na(data$class_pred), NA, data$truth)
 table(data$truth)
 
 #find optimal cutoff probability to use to maximize accuracy
-optimal <- optimalCutoff(data$truth, data$prob_ams, optimiseFor = "misclasserror")[1]
+#optimal <- optimalCutoff(data$truth, data$prob_ams, optimiseFor = "misclasserror")[1]
 
 # Confusion matrix
 confusionMatrix(data$class_pred, data$truth)
