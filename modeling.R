@@ -12,28 +12,53 @@ set.seed(42)
 # Load data --------------------------------------------------------------------
 # load preperad dataset
 data <- readRDS("data/JuSAW_prepared.rds")
-data_ams <- readRDS("data/JuSAW_ams_prepared.rds")
 
 # Load other scripts -----------------------------------------------------------
 source("variable_sets.R", encoding="utf-8") # for predefined feature sets
+
+# Validation and Train-/Test Split ---------------------------------------------
+# Training set for tuning, test set for final evaluation on untouched data
+train_test_ratio = .8
+data_training = dplyr::sample_frac(tbl = data, size = train_test_ratio)
+data_test = dplyr::anti_join(x = data, y = data_training, by = "case")
+
+ggplot(data_test, aes(x = EMPLOYMENTDAYS)) +
+  geom_bar()
 
 # Task set-up ==================================================================
 # Set up different tasks with different variable sets --------------------------
 # Original AMS-Model
 task_ams_youth = as_task_classif(data[ams_youth], 
-                                 target = "EMPLOYMENTDAYS", positive = ">=90 Tage", id = "AMS youth")
+                                 target = "EMPLOYMENTDAYS", 
+                                 positive = ">=90 Tage", id = "AMS youth")
+task_ams_youth_train = as_task_classif(data_training[ams_youth], 
+                                 target = "EMPLOYMENTDAYS", 
+                                 positive = ">=90 Tage", id = "AMS youth train")
+task_ams_youth_test = as_task_classif(data_test[ams_youth], 
+                                 target = "EMPLOYMENTDAYS", 
+                                 positive = ">=90 Tage", id = "AMS youth test")
 #task_ams_youth$set_col_roles("case", roles = "name")
 
 ids = complete.cases(task_ams_youth$data())
 sum(!ids)
 task_ams_youth$filter(which(ids))
+
+ids = complete.cases(task_ams_youth_train$data())
+sum(!ids)
+task_ams_youth_train$filter(which(ids))
+
+ids = complete.cases(task_ams_youth_test$data())
+sum(!ids)
+task_ams_youth_test$filter(which(ids))
 # number of incomplete observations
 # should be zero now
-ids = complete.cases(task_green$data())
-sum(!ids)
+#ids = complete.cases(task_green$data())
+#sum(!ids)
 
 # Set protected attribute
 task_ams_youth$col_roles$pta = "GENDER_female"
+task_ams_youth_train$col_roles$pta = "GENDER_female"
+task_ams_youth_test$col_roles$pta = "GENDER_female"
 
 print(task_ams_youth)
 # Logistic regression model with all variables step-procedure ------------------
@@ -41,33 +66,54 @@ print(task_ams_youth)
 
 # Grenn variables --------------------------------------------------------------
 task_green_all = as_task_classif(data[green_all], 
-                                 target = "EMPLOYMENTDAYS", positive = ">=90 Tage", id = "green_all")
+                                 target = "EMPLOYMENTDAYS", 
+                                 positive = ">=90 Tage", id = "green_all")
 task_green = as_task_classif(data[green], 
-                             target = "EMPLOYMENTDAYS", positive = ">=90 Tage", id = "green")
+                             target = "EMPLOYMENTDAYS", 
+                             positive = ">=90 Tage", id = "green")
+task_green_train = as_task_classif(data_training[green], 
+                             target = "EMPLOYMENTDAYS", 
+                             positive = ">=90 Tage", id = "green train")
+task_green_test = as_task_classif(data_test[green], 
+                             target = "EMPLOYMENTDAYS", 
+                             positive = ">=90 Tage", id = "green test")
 
 ids = complete.cases(task_green$data())
-# number of incomplete observations
 sum(!ids)
 task_green$filter(which(ids))
 
+ids = complete.cases(task_green_train$data())
+sum(!ids)
+task_green_train$filter(which(ids))
+
+ids = complete.cases(task_green_test$data())
+sum(!ids)
+task_green_test$filter(which(ids))
+
 task_green$col_roles$pta = "GENDER_female"
+task_green_train$col_roles$pta = "GENDER_female"
+task_green_test$col_roles$pta = "GENDER_female"
+
 
 print(task_green)
 
 # Set-up rest ==================================================================
 # Tasks
-tasks = c(task_ams_youth
-          , task_green
+tasks = c(task_ams_youth_train
+          , task_green_train
           )
 
 # Evaluation measures (use msrs() to get a list of all measures ----------------
-measures = msrs(c("classif.acc"
+performance_measures = msrs(c("classif.acc"
                   , "classif.auc"
                   , "classif.tpr"
                   , "classif.fpr"
                   , "classif.ce"
                   , "classif.fbeta"
                   ))
+
+# Fairness Measure
+fairness_measures = msrs(c("fairness.acc", "fairness.fpr"))
 
 # measures = list(
 #   msr("classif.auc", predict_sets = "train", id = "auc_train"),
@@ -89,7 +135,7 @@ learners = lrns(c( "classif.featureless"
                    ,"classif.ranger" # Random Forest
                    #,"classif.xgboost"
                    ), 
-                predict_type = "prob", predict_sets = c("train", "test"))
+                predict_type = "prob", predict_sets = "test") #  "train", "holdout"
 
 # Benchmark design -------------------------------------------------------------
 design = benchmark_grid(tasks = tasks, 
@@ -103,28 +149,55 @@ bmr = benchmark(design, store_models = TRUE)
 #evaluation_time <- Sys.time() - execute_start_time 
 #rm(execute_start_time)
 
+bmr_ams <- bmr$clone(deep = TRUE)$filter(task_id = "AMS youth train")
+bmr_green <- bmr$clone(deep = TRUE)$filter(task_id = "green train")
 
 # Evaluation ===================================================================
 print(bmr)
 
+# set threshold before calculating measures!!
+#bmr$aggregate()[,resample_result]$predictions()$set_threshold(0.66)
+
+# Measure results
+# I guess aggregate is only important for cv -> check
+(tab = bmr$aggregate(c(performance_measures, fairness_measures)))
+bmr$score(measures)
+
+# Visualisation of measures ----------------------------------------------------
 # All available plot types are listed on the manual page of autoplot.ResampleResult().
+# CE Plot
 autoplot(bmr) + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 
-bmr_ams <- bmr$clone(deep = TRUE)$filter(task_id = "AMS youth")
-bmr_green <- bmr$clone(deep = TRUE)$filter(task_id = "green")
+# ROC curves for tasks
 autoplot(bmr_ams, type = "roc")
 autoplot(bmr_green, type = "roc")
 
-(tab = bmr$aggregate(measures))
-bmr$score(measures)
-# log.reg zum Beispiel ist bei jedem Maß perfekt, wir wählen das als finales Modell
-
-# Ranked Performance------------------------------------------------------------
+# Ranked Performance
 ranks_performace = tab[, .(learner_id, task_id, rank_train = rank(-classif.auc))] %>% 
   dplyr::arrange(rank_train)
 print(ranks_performace)
 
+# Fairness stuff
+fairness_accuracy_tradeoff(bmr)
+compare_metrics(bmr, fairness_measure)
+fairness_prediction_density(bmr)
+
+
 # Predictions ==================================================================
+# Data frame with all predictions?
+green_rpart = bmr$aggregate()[learner_id == "classif.rpart" & task_id == "green train", resample_result][[1]]
+pred_green_rpart <- green_rpart$predictions()[[1]]
+pred_green_rpart$set_threshold(0.66)
+
+# confusion matrix
+pred_green_rpart$confusion
+
+
+# Heatmaps =====================================================================
+ams_youth_heatmap <- tab[task_id == "AMS youth train", c(4, 7:14)]
+ams_youth_heatmap <- column_to_rownames(ams_youth_heatmap, var="learner_id")
+ams_youth_heatmap <- as.matrix(ams_youth_heatmap)
+heatmap(ams_youth_heatmap, scale = "column")
 
 # RESTE ########################################################################
 # Choose the best model and fit on whole dataset 
@@ -201,3 +274,11 @@ ggplot(data = feature_scores, aes(x = reorder(feature, -score), y = score)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   scale_y_continuous(breaks = pretty(1:500, 10))
 
+# Predictions ==================================================================
+rr = bmr$aggregate()[learner_id == "classif.rpart"]
+bmr$predictions()
+
+
+predictions = learners$predict(task_ams_youth_test)
+
+predictions = learners$predict_newdata(data_test, task = "AMS youth")
