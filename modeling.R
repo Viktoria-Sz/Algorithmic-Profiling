@@ -6,7 +6,9 @@ library(tidyverse)
 library(mlr3verse) # machine learning set-up for modeling
 library(ranger) # Random Forest
 library(mlr3fairness)
-options(scipen=100) # prevent scientific notion (e)
+library(DALEX)
+library(DALEXtra)
+library(fairmodels)
 set.seed(42)
 
 # Load data --------------------------------------------------------------------
@@ -99,8 +101,8 @@ print(task_green)
 
 # Set-up rest ==================================================================
 # Tasks
-tasks = c(task_ams_youth_train
-          , task_green_train
+tasks = c(task_ams_youth
+          , task_green
           )
 
 # Evaluation measures (use msrs() to get a list of all measures ----------------
@@ -113,7 +115,33 @@ performance_measures = msrs(c("classif.acc"
                   ))
 
 # Fairness Measure
-fairness_measures = msrs(c("fairness.acc", "fairness.fpr"))
+fairness_measures = msrs(c("fairness.acc"
+                           , "fairness.fpr"
+                           , "fairness.fnr"
+                           , "fairness.fomr"
+                           , "fairness.ppv"
+                           , "fairness.eod"
+                           ))
+# fairness.acc: Absolute differences in accuracy across groups
+# fairness.fpr: Absolute differences in false positive rates across groups
+# -> In my case the FPR represents the unemployed who falsely got into the H group
+#    and wont get any help, even though they need it. 
+#    This rate should not be higher for men
+# -> TNR represents the rate at which people got into the M group and do indeed
+#    need help finding a job.
+#    This rate should not be higher for men
+# fairness.fnr: Absolute differences in false negative rates across groups
+# -> In my case the FNR represents the rate at which unemployed get into the M group
+#    and probably have to participate in support measures even though they dont
+#    need them and it would only prolong their unemployment period but not help 
+#    them to find a job, since they would find one either way.
+# -> TPR would represent the rate at which unemployed rightly got into the h group,
+#    that means  they dont need help and dont get help.
+#    This rate should not be lower for women
+#    This rate is probably higher for highly motivated people
+# fairness.fomr: Absolute differences in false omission rates across groups
+# fairness.ppv: Absolute differences in positive predictive values across groups
+# fairness.eod: Equalized Odds: Sum of absolute differences between true positive and false positive rates across groups
 
 # measures = list(
 #   msr("classif.auc", predict_sets = "train", id = "auc_train"),
@@ -160,8 +188,61 @@ print(bmr)
 
 # Measure results
 # I guess aggregate is only important for cv -> check
-(tab = bmr$aggregate(c(performance_measures, fairness_measures)))
-bmr$score(measures)
+bmr$aggregate(c(performance_measures, fairness_measures))
+bmr$score(c(performance_measures, fairness_measures))
+
+# Set threshold to 66% as in the ams paper
+tab_bmr <- as.data.table(bmr)
+lapply(tab_bmr$prediction, function(i) i$set_threshold(0.66))
+
+# Predictions
+tab_bmr$prediction
+tab_bmr$prediction[[1]]$confusion
+tab_bmr$prediction[[2]]$confusion
+tab_bmr$prediction[[2]]$score(performance_measures)
+
+# Explain objects --------------------------------------------------------------
+tab_bmr$learner[[2]]$model
+mlr3misc::map(tab_bmr$learner, "model")
+
+ids = complete.cases(data[ams])
+log_explain <- explain_mlr3(tab_bmr$learner[[2]]$model,
+                            data = data[ids, ams_youth[-1]],
+                            y = data$r_besch[ids],
+                            label = "Log ams youth")
+rpart_explain <- explain_mlr3(tab_bmr$learner[[3]]$model,
+                            data = data[ids, ams_youth[-1]],
+                            y = data$r_besch[ids],
+                            label = "rpart ams youth")
+ranger_explain <- explain_mlr3(tab_bmr$learner[[4]]$model,
+                            data = data[ids, ams_youth[-1]],
+                            y = data$r_besch[ids],
+                            label = "ranger ams youth")
+
+fobject <- fairness_check(log_explain, rpart_explain, ranger_explain,
+                          protected = data$GENDER_female[ids],
+                          privileged = "male",
+                          cutoff = 0.66,
+                          verbose = FALSE)
+fobject$parity_loss_metric_data
+fobject$fairness_check_data
+plot(fobject)
+plot_density(fobject)
+plot(metric_scores(fobject))
+sm <- stack_metrics(fobject)
+plot(sm)
+fair_pca <- fairness_pca(fobject)
+print(fair_pca)
+plot(fair_pca)
+
+fheatmap <- fairness_heatmap(fobject)
+plot(fheatmap)
+
+fap <- performance_and_fairness(fobject, fairness_metric = "TPR")
+plot(fap)
+
+ac <- all_cutoffs(fobject)
+plot(ac)
 
 # Visualisation of measures ----------------------------------------------------
 # All available plot types are listed on the manual page of autoplot.ResampleResult().
@@ -282,3 +363,8 @@ bmr$predictions()
 predictions = learners$predict(task_ams_youth_test)
 
 predictions = learners$predict_newdata(data_test, task = "AMS youth")
+
+
+# Datasheets and Modelcards ====================================================
+rmdfile = report_datasheet()
+rmarkdown::render(rmdfile)
