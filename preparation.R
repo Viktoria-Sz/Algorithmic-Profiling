@@ -20,45 +20,6 @@ data <- readRDS("data/dataJuSAW.rds")
 # • Checking for collinearity
 # • Checking for diagnostics (residual analysis)
 
-
-# Plot functions ===============================================================
-df_t0t1 <- function(data, variable, variable_t1){
-  var <- enquo(variable)
-  var_t1 <- enquo(variable_t1)
-  
-  var_name <- as_label(var)
-  var_t1_name <- as_label(var_t1)
-  
-  df_t0t1 <- data %>%
-    select(!!var, !!var_t1) %>%
-    pivot_longer(c(expr(!!var_name), expr(!!var_t1_name)), names_to = "time", values_to= expr(!!var_name), values_drop_na = TRUE)
-  
-  df_t0t1$time <- factor(df_t0t1$time, levels = c(expr(!!var_name), expr(!!var_t1_name)), labels =  c("t0", "t1"), ordered = FALSE) %>%
-    relevel(ref = "t0")
-  
-  return(df_t0t1)
-}
-# df_t0t1(data, lottery, lottery_t1)
-# plot_prob(df_t0t1(data, lottery, lottery_t1), lottery)
-
-plot_prob <- function(data, variable){
-  var <- enquo(variable) # Variable verwendbar machen in ggplot
-  
-  ggplot(data, aes(x = time, fill = !!var)) +
-    geom_bar(position = "fill") +
-    theme_bw(base_size = 15)
-}
-# plot_prob(lottery_df, lottery) 
-
-plot_count <- function(data, variable){
-  var <- enquo(variable) # Variable verwendbar machen in ggplot
-  
-  ggplot(data, aes(x = !!var, fill = time)) +
-    geom_bar(position = position_dodge(width = 0.5)) +
-    theme_bw(base_size = 15)
-}
-# plot_count(lottery_df, lottery) 
-
 ################################################################################
 # Exploring the data ===========================================================
 str(data)
@@ -91,7 +52,7 @@ describe(data[,numeric.only])
 # Abhängige Variable kurzfristiges Kriterium -----------------------------------
 # innerhalb von 7 Monaten nach "Meilenstein" insgesamt 90 Tage in ungeförderter Beschäftigung stehend (1), sonst (0)
 table(data$r_besch)
-data$EMPLOYMENTDAYS <- factor(data$r_besch, levels = c(0, 1), labels = c("<90 Tage", ">=90 Tage"), ordered = FALSE)
+data$EMPLOYMENTDAYS <- factor(data$r_besch, levels = c(0, 1), labels = c("<90 Days", ">=90 Days"), ordered = FALSE)
 table(data$EMPLOYMENTDAYS, useNA = "always") # cannot use NAs
 data <- subset(data, !is.na(EMPLOYMENTDAYS))
 # Job at second interview
@@ -180,7 +141,7 @@ is.ordered(data$IMPAIRMENT)
 table(data$IMPAIRMENT_order, useNA = "always")
 table(data$IMPAIRMENT_order, data$lhealth, useNA = "always")
 table(data$IMPAIRMENT, useNA = "always")
-data <- subset(data, !is.na(IMPAIRMENT))
+#data <- subset(data, !is.na(IMPAIRMENT))
 ggplot(data, aes(x = IMPAIRMENT, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = "fill")
 ggplot(data, aes(x = IMPAIRMENT, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
@@ -286,7 +247,7 @@ ggplot(data, aes(x = as.factor(abbruch01), group = EMPLOYMENTDAYS, fill = EMPLOY
 table(data$r_ausbildung, useNA = "always") 
 data$EDUCATION <- factor(data$r_ausbildung, levels = c("L", "M", "P"), labels =  c("L", "M", "P"), ordered = FALSE)
 data$EDUCATION <- relevel(data$EDUCATION, ref = "P")
-data <- subset(data, !is.na(EDUCATION))
+#data <- subset(data, !is.na(EDUCATION))
 table(data$EDUCATION, useNA = "always")
 ggplot(data, aes(x = EDUCATION, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = position_dodge(width = 0.5))

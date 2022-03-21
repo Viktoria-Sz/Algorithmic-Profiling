@@ -6,48 +6,55 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
+
+
+# Load Libraries
+library(tidyverse)
+
+# load preperad dataset
+data_pre <- readRDS("data/dataJuSAW.rds")
+data <- readRDS("data/JuSAW_prepared.rds")
+source("variable_sets.R", encoding="utf-8") # for predefined feature sets
 ```
 
-## R Markdown
+### Data Descriptives
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+## Beschäftigungstage
+```{r employmentdays}
+ggplot(data_pre, aes(x = as.factor(r_besch), fill = as.factor(r_besch))) +
+  geom_bar() +
+  geom_text(stat = "count", aes(label = ..count..), vjust = -0.5) +
+  labs(title = "Beschäftigungstage größer oder kleiner 90 Tage in 7 Monaten",
+       y = "Anzahl Beobachtungen", x = "Beschäftigungstage",
+       fill = "Beschäftigungstage") +
+  scale_x_discrete(labels = c("1" = ">=90 Tage", "0" = "<90 Tage")) +
+  theme(legend.position = "none")
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+```
+Insgesamt 1215 Beobachtungen, von denen 82 keinen Wert für die abhängige Variable "Beschäftigungstage" haben. Bleiben 1133 Beobachtungen
+Weiterhin hat der Datensatz insgesamt 326 Variablen, wovon ... nur für die zweite Beobachtungswelle verfügbar sind und damit nicht weiter betrachtet wurden.
 
+## Distribution of some interesting variables?
+## Chi-Square test auf Unabhängigkeit für alle AMS Variablen 
 ```{r cars}
 summary(cars)
 ```
+-> Anteil an Personen mit der Variablenausprägung, die es geschafft haben
+## Heatmap other variables with dependent
 
-## Including Plots
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
-
-## Data Descriptives
-
-# Basic descriptives like oberservation numbers
-# Distribution dependent variable
-# Distribution of some interesting variables?
-# Heatmap AMS variables with dependent
-# -> Anteil an Personen mit der Variablenausprägung, die es geschafft haben
-# Heatmap other variables with dependent
-
-## Modeling
+### Modeling
 
 # Test-Train set-up
 # Original logistic regression AMS youth model coefficients
+-> corrplot can visualize p-values
 # Original logistic regression AMS youth model new fit
 # Logistic regression with other variables
 # Random forest with AMS youth
 # Random forest with other variables
 
-## Evaluation
+### Evaluation
 
 # Heatmap with performance measures
 # Heatmap with fairness measures
