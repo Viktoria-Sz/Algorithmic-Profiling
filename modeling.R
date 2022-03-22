@@ -2,6 +2,8 @@
 # Preparation ==================================================================
 # Libraries --------------------------------------------------------------------
 library(tidyverse)
+library(broom) # für funktion tidy
+library(data.table) # für rbindlist
 #library(modelr)
 library(mlr3verse) # machine learning set-up for modeling
 library(ranger) # Random Forest
@@ -188,19 +190,102 @@ print(bmr)
 
 # Measure results
 # I guess aggregate is only important for cv -> check
-bmr$aggregate(c(performance_measures, fairness_measures))
+#bmr$aggregate(c(performance_measures, fairness_measures))
 bmr$score(c(performance_measures, fairness_measures))
 
 # Set threshold to 66% as in the ams paper
 tab_bmr <- as.data.table(bmr)
 lapply(tab_bmr$prediction, function(i) i$set_threshold(0.66))
 
-# Predictions
-tab_bmr$prediction
-tab_bmr$prediction[[1]]$confusion
-tab_bmr$prediction[[2]]$confusion
-tab_bmr$prediction[[2]]$score(performance_measures)
 
+# Aggregate measures as in bmr$score
+tab_bmr$task
+ams_youth_task_measures <- lapply(tab_bmr$prediction[1:4], 
+       function(i) i$score(measures = c(performance_measures, fairness_measures),
+                                               task = task_ams_youth))
+green_task_measures <- lapply(tab_bmr$prediction[5:8], 
+       function(i) i$score(measures = c(performance_measures, fairness_measures),
+                           task = task_green))
+
+ams_youth_task <- rbindlist(lapply(ams_youth_task_measures, tidy), idcol=TRUE)
+ams_youth_task <- ams_youth_task %>%
+  rename(learner = .id,measure_id = names, measure_value = x) %>%
+  mutate(learner = as.factor(learner), task = "AMS youth")
+levels(ams_youth_task$learner) <- c("featureless", "Log_reg", "rpart", "ranger")
+
+green_task <- rbindlist(lapply(green_task_measures, tidy), idcol=TRUE)
+green_task <- green_task %>%
+  rename(learner = .id, measure_id = names, measure_value = x) %>%
+  mutate(learner = as.factor(learner), task = "Green")
+levels(green_task$learner) <- c("featureless", "Log_reg", "rpart", "ranger")
+
+measures_table_0.66 <- rbind(ams_youth_task, green_task)
+# measures_table_0.5 <- rbind(ams_youth_task, green_task)
+# measures_table_0.5 <- unite(measures_table_0.5, "id", c("task", "learner"), remove = FALSE)
+measures_table_0.66 <- unite(measures_table_0.66, "id", c("task", "learner"), remove = FALSE)
+
+
+tab_bmr$learner
+# Predictions
+tab_bmr$prediction # als Tabelle?
+
+#confusion_list_0.5 <- lapply(tab_bmr$prediction, function(i) i$confusion)
+#lapply(tab_bmr$prediction, function(i) i$set_threshold(0.5))
+confusion_list_0.66 <- lapply(tab_bmr$prediction, function(i) i$confusion)
+# names(confusion_list_0.5) <- c("ams featureless", "ams Log_reg", "ams rpart", "ams ranger",
+#                            "green featureless", "green Log_reg", "green rpart", "green ranger")
+names(confusion_list_0.66) <- c("ams featureless", "ams Log_reg", "ams rpart", "ams ranger",
+                               "green featureless", "green Log_reg", "green rpart", "green ranger")
+
+
+# Heatmap with meausres
+p_0.66 <- ggplot(measures_table_0.66, aes(measure_id, id, fill = measure_value)) +          # Specify colors manually
+  geom_tile() +
+  theme(axis.title.x=element_blank(),axis.title.y=element_blank(),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1)) + 
+  geom_text(aes(label = round(measure_value, 2))) +
+  scale_fill_distiller(palette = "OrRd", direction = 1, limits = c(0,1)) +
+  ggtitle(label = "Heatmap with performance and fairness measures for threshold 0.66")
+
+p_0.5 <- ggplot(measures_table_0.5, aes(measure_id, id, fill = measure_value)) +          # Specify colors manually
+  geom_tile() +
+  theme(axis.title.x=element_blank(),axis.title.y=element_blank(),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1)) + 
+  geom_text(aes(label = round(measure_value, 2))) +
+  scale_fill_distiller(palette = "OrRd", direction = 1, limits = c(0,1)) +
+  ggtitle(label = "Heatmap with performance and fairness measures for threshold 0.5")
+
+library(plotly)
+ggplotly(p_0.66)
+
+# Visualisation of measures ----------------------------------------------------
+# All available plot types are listed on the manual page of autoplot.ResampleResult().
+# CE Plot
+autoplot(bmr) + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+
+# ROC curves for tasks
+autoplot(bmr_ams, type = "roc")
+autoplot(bmr_green, type = "roc")
+
+# Ranked Performance
+ranks_performace = tab[, .(learner_id, task_id, rank_train = rank(-classif.auc))] %>% 
+  dplyr::arrange(rank_train)
+print(ranks_performace)
+
+# Fairness stuff
+fairness_accuracy_tradeoff(bmr)
+compare_metrics(bmr, fairness_measure)
+fairness_prediction_density(bmr)
+
+# Heatmaps =====================================================================
+ams_youth_heatmap <- tab[task_id == "AMS youth", c(4, 7:14)]
+ams_youth_heatmap <- column_to_rownames(ams_youth_heatmap, var="learner_id")
+ams_youth_heatmap <- as.matrix(ams_youth_heatmap)
+heatmap(ams_youth_heatmap, scale = "column")
+
+# Predictions ==================================================================
+
+# Explain and fairmodels =======================================================
 # Explain objects --------------------------------------------------------------
 tab_bmr$learner[[2]]$model
 mlr3misc::map(tab_bmr$learner, "model")
@@ -211,14 +296,15 @@ log_explain <- explain_mlr3(tab_bmr$learner[[2]]$model,
                             y = data$r_besch[ids],
                             label = "Log ams youth")
 rpart_explain <- explain_mlr3(tab_bmr$learner[[3]]$model,
-                            data = data[ids, ams_youth[-1]],
-                            y = data$r_besch[ids],
-                            label = "rpart ams youth")
+                              data = data[ids, ams_youth[-1]],
+                              y = data$r_besch[ids],
+                              label = "rpart ams youth")
 ranger_explain <- explain_mlr3(tab_bmr$learner[[4]]$model,
-                            data = data[ids, ams_youth[-1]],
-                            y = data$r_besch[ids],
-                            label = "ranger ams youth")
+                               data = data[ids, ams_youth[-1]],
+                               y = data$r_besch[ids],
+                               label = "ranger ams youth")
 
+# Fairmodels -------------------------------------------------------------------
 fobject <- fairness_check(log_explain, rpart_explain, ranger_explain,
                           protected = data$GENDER_female[ids],
                           privileged = "male",
@@ -244,41 +330,7 @@ plot(fap)
 ac <- all_cutoffs(fobject)
 plot(ac)
 
-# Visualisation of measures ----------------------------------------------------
-# All available plot types are listed on the manual page of autoplot.ResampleResult().
-# CE Plot
-autoplot(bmr) + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 
-# ROC curves for tasks
-autoplot(bmr_ams, type = "roc")
-autoplot(bmr_green, type = "roc")
-
-# Ranked Performance
-ranks_performace = tab[, .(learner_id, task_id, rank_train = rank(-classif.auc))] %>% 
-  dplyr::arrange(rank_train)
-print(ranks_performace)
-
-# Fairness stuff
-fairness_accuracy_tradeoff(bmr)
-compare_metrics(bmr, fairness_measure)
-fairness_prediction_density(bmr)
-
-
-# Predictions ==================================================================
-# Data frame with all predictions?
-green_rpart = bmr$aggregate()[learner_id == "classif.rpart" & task_id == "green train", resample_result][[1]]
-pred_green_rpart <- green_rpart$predictions()[[1]]
-pred_green_rpart$set_threshold(0.66)
-
-# confusion matrix
-pred_green_rpart$confusion
-
-
-# Heatmaps =====================================================================
-ams_youth_heatmap <- tab[task_id == "AMS youth train", c(4, 7:14)]
-ams_youth_heatmap <- column_to_rownames(ams_youth_heatmap, var="learner_id")
-ams_youth_heatmap <- as.matrix(ams_youth_heatmap)
-heatmap(ams_youth_heatmap, scale = "column")
 
 # RESTE ########################################################################
 # Choose the best model and fit on whole dataset 
@@ -356,12 +408,19 @@ ggplot(data = feature_scores, aes(x = reorder(feature, -score), y = score)) +
   scale_y_continuous(breaks = pretty(1:500, 10))
 
 # Predictions ==================================================================
+# Data frame with all predictions?
+green_rpart = bmr$aggregate()[learner_id == "classif.rpart" & task_id == "green train", resample_result][[1]]
+pred_green_rpart <- green_rpart$predictions()[[1]]
+pred_green_rpart$set_threshold(0.66)
+
+# confusion matrix
+pred_green_rpart$confusion
+
 rr = bmr$aggregate()[learner_id == "classif.rpart"]
 bmr$predictions()
 
 
 predictions = learners$predict(task_ams_youth_test)
-
 predictions = learners$predict_newdata(data_test, task = "AMS youth")
 
 
