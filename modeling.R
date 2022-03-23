@@ -1,6 +1,6 @@
-# MODELLING ####################################################################
-# Preparation ==================================================================
-# Libraries --------------------------------------------------------------------
+# MODELLING ############################################################################################################
+# Preparation ==========================================================================================================
+# Libraries ------------------------------------------------------------------------------------------------------------
 library(tidyverse)
 library(broom) # für funktion tidy
 library(data.table) # für rbindlist
@@ -13,47 +13,25 @@ library(DALEXtra)
 library(fairmodels)
 set.seed(42)
 
-# Load data --------------------------------------------------------------------
+# Load data ------------------------------------------------------------------------------------------------------------
 # load preperad dataset
 data <- readRDS("data/JuSAW_prepared.rds")
 
-# Load other scripts -----------------------------------------------------------
+# Load other scripts ---------------------------------------------------------------------------------------------------
 source("variable_sets.R", encoding="utf-8") # for predefined feature sets
 
-# Validation and Train-/Test Split ---------------------------------------------
-# Training set for tuning, test set for final evaluation on untouched data
-train_test_ratio = .8
-data_training = dplyr::sample_frac(tbl = data, size = train_test_ratio)
-data_test = dplyr::anti_join(x = data, y = data_training, by = "case")
-
-ggplot(data_test, aes(x = EMPLOYMENTDAYS)) +
-  geom_bar()
-
-# Task set-up ==================================================================
-# Set up different tasks with different variable sets --------------------------
+# Task set-up ==========================================================================================================
+# Set up different tasks with different variable sets ------------------------------------------------------------------
 # Original AMS-Model
 task_ams_youth = as_task_classif(data[ams_youth], 
                                  target = "EMPLOYMENTDAYS", 
                                  positive = ">=90 Tage", id = "AMS youth")
-task_ams_youth_train = as_task_classif(data_training[ams_youth], 
-                                 target = "EMPLOYMENTDAYS", 
-                                 positive = ">=90 Tage", id = "AMS youth train")
-task_ams_youth_test = as_task_classif(data_test[ams_youth], 
-                                 target = "EMPLOYMENTDAYS", 
-                                 positive = ">=90 Tage", id = "AMS youth test")
 #task_ams_youth$set_col_roles("case", roles = "name")
 
 ids = complete.cases(task_ams_youth$data())
 sum(!ids)
 task_ams_youth$filter(which(ids))
 
-ids = complete.cases(task_ams_youth_train$data())
-sum(!ids)
-task_ams_youth_train$filter(which(ids))
-
-ids = complete.cases(task_ams_youth_test$data())
-sum(!ids)
-task_ams_youth_test$filter(which(ids))
 # number of incomplete observations
 # should be zero now
 #ids = complete.cases(task_green$data())
@@ -61,8 +39,6 @@ task_ams_youth_test$filter(which(ids))
 
 # Set protected attribute
 task_ams_youth$col_roles$pta = "GENDER_female"
-task_ams_youth_train$col_roles$pta = "GENDER_female"
-task_ams_youth_test$col_roles$pta = "GENDER_female"
 
 print(task_ams_youth)
 # Logistic regression model with all variables step-procedure ------------------
@@ -75,29 +51,12 @@ task_green_all = as_task_classif(data[green_all],
 task_green = as_task_classif(data[green], 
                              target = "EMPLOYMENTDAYS", 
                              positive = ">=90 Tage", id = "green")
-task_green_train = as_task_classif(data_training[green], 
-                             target = "EMPLOYMENTDAYS", 
-                             positive = ">=90 Tage", id = "green train")
-task_green_test = as_task_classif(data_test[green], 
-                             target = "EMPLOYMENTDAYS", 
-                             positive = ">=90 Tage", id = "green test")
 
 ids = complete.cases(task_green$data())
 sum(!ids)
 task_green$filter(which(ids))
 
-ids = complete.cases(task_green_train$data())
-sum(!ids)
-task_green_train$filter(which(ids))
-
-ids = complete.cases(task_green_test$data())
-sum(!ids)
-task_green_test$filter(which(ids))
-
 task_green$col_roles$pta = "GENDER_female"
-task_green_train$col_roles$pta = "GENDER_female"
-task_green_test$col_roles$pta = "GENDER_female"
-
 
 print(task_green)
 
@@ -427,3 +386,12 @@ predictions = learners$predict_newdata(data_test, task = "AMS youth")
 # Datasheets and Modelcards ====================================================
 rmdfile = report_datasheet()
 rmarkdown::render(rmdfile)
+
+# Validation and Train-/Test Split ---------------------------------------------
+# Training set for tuning, test set for final evaluation on untouched data
+train_test_ratio = .8
+data_training = dplyr::sample_frac(tbl = data, size = train_test_ratio)
+data_test = dplyr::anti_join(x = data, y = data_training, by = "case")
+
+ggplot(data_test, aes(x = EMPLOYMENTDAYS)) +
+  geom_bar()
