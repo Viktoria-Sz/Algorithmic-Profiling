@@ -2,152 +2,17 @@
 
 # Libraries --------------------------------------------------------------------
 library(tidyverse)
+library(caret) # Confusion Matrix
+library(InformationValue) # Optimal cutoff threshold
+# library(ISLR)
 options(na.action = na.warn)
 options(scipen=100) # prevent scientific notion (e)
 
 # Load data --------------------------------------------------------------------
-data <- readRDS("data/dataJuSAW.rds")
-attach(data)
+data <- readRDS("data/JuSAW_prepared.rds")
 
-# Data preparation for AMS -----------------------------------------------------
-
-# Variables for AMAS
-# GESCHLECHT_WEIBLICH: Geschlecht weiblich, mit 0= männlich, 1=weiblich
-table(r_geschlecht)
-table(female, r_geschlecht) # lieber female verwenden, hat weniger missings
-table(female)
-data$GENDER_female <- factor(female, levels = c("0", "1"), labels = c("male", "female"), ordered = FALSE)
-table(data$GENDER_female)
-
-# AUSBILDUNG: Ausbildung
-table(r_ausbildung) 
-data$EDUCATION <- factor(r_ausbildung, levels = c("L", "M", "P"), labels =  c("L", "M", "P"), ordered = FALSE)
-data$EDUCATION <- relevel(data$EDUCATION, ref = "P")
-table(data$EDUCATION)
-
-table(ausb_t1)
-table(eduhöchst4)
-table(eduhöchst4_t1)
-
-# Betreuungspflichten (nur für Frauen)
-table(r_betreuungspflichten)
-table(r_betreuungspflichten, kinder) 
-table(r_betreuungspflichten, female)
-table(kinder, female)
-table(kinder)
-
-data$CHILDCARE_both <-factor(kinder, levels = c("ja", "nein"), labels =  c("ja", "nein"), ordered = FALSE)
-data$CHILDCARE <- ifelse(data$GENDER_female == "female" & data$CHILDCARE_both =="ja", "ja", "nein")
-data$CHILDCARE <- factor(data$CHILDCARE, ordered = FALSE)
-data$CHILDCARE_both <- relevel(data$CHILDCARE_both, ref = "nein")
-data$CHILDCARE <- relevel(data$CHILDCARE, ref = "nein")
-table(data$CHILDCARE_both)
-table(data$CHILDCARE)
-table(data$CHILDCARE, data$GENDER_female)
-table(data$CHILDCARE_both, data$GENDER_female)
-
-# RGS Typ
-table(r_rgstyp)
-data$RGS <-factor(r_rgstyp, levels = c("1", "2", "3", "4"), labels =  c("1", "2", "3", "4"), ordered = FALSE)
-is.ordered(data$RGS)
-table(data$RGS)
-
-# Beeinträchtigt
-table(shealth)
-table(lhealth) # wahrscheinlich beste Wahl
-table(longill) 
-data$IMPAIRMENT_order <-factor(lhealth, levels = c("ja stark", "ja ein wenig", "nein"), 
-                                   labels =  c("yes, very", "yes, a little", "no"), ordered =  TRUE)
-data$IMPAIRMENT <-ifelse(data$IMPAIRMENT_order == "yes, very" | data$IMPAIRMENT_order == "yes, a little", "yes", "no")
-data$IMPAIRMENT <- factor(data$IMPAIRMENT, ordered = FALSE)
-data$IMPAIRMENT <- relevel(data$IMPAIRMENT, ref = "no")
-is.ordered(data$IMPAIRMENT_order)
-is.ordered(data$IMPAIRMENT)
-
-# Was machen mit den den "keine Angabe" Leuten?
-table(data$IMPAIRMENT_order)
-table(data$IMPAIRMENT_order, lhealth, useNA = "always")
-ordered(data$IMPAIRMENT_order)
-table(data$IMPAIRMENT)
-
-# Berufsgruppe Produktion oder Service
-table(r_berufsgruppe_ams1)
-table(r_berufsgruppe)
-table(r_berufsgruppe_ams1, r_berufsgruppe) # Was ist mit 9? Wird nicht berücksichtigt im AMS Methoden paper
-data$OCCUPATIONGROUP_all <- factor(r_berufsgruppe_ams1, ordered = FALSE)
-data$OCCUPATIONGROUP <- factor(r_berufsgruppe, ordered = FALSE)
-
-# WICHTIG: Für junge Leute unter 25:
-# Für diese Population werden die Merkmale STAATENGRUPPE, GESCHÄFTSFALLDAUER und BESCHÄFTIGUNGSVERLAUF nicht für die Schätzung verwendet.
-# BESCHÄFTIGUNGSVERLAUF: Beschäftigungsverlauf vor AL
-table(r_beschverl_voral)
-data$EMPLOYMENT <- factor(r_beschverl_voral, levels = c(1, 2), labels = c(">75%", "<75%"), ordered = FALSE)
-table(data$EMPLOYMENT)
-
-table(r_monate_erw_j1voral, useNA = "always")
-table(r_monate_erw_j2voral, useNA = "always")
-table(r_monate_erw_j3voral, useNA = "always")
-table(r_monate_erw_j4voral, useNA = "always")
-
-# Geschäftsfalldauer
-# 0 = kein Geschäftsfall mit Dauer >= 180 Tage; 1 = 1 oder mehrere Geschäftsfälle mit Dauer >= 180 Tage -> halbes Jahr
-table(r_geschfalldau_voral)
-table(r_geschfalldau3m_voral)
-data$BUSINESSCASEDUR <- factor(r_geschfalldau_voral, levels = c(0, 1), labels = c("kein GF>=180", "GF>=180"), ordered = FALSE)
-
-table(r_geschaeftsfall_j1voral, useNA = "always")
-table(r_geschaeftsfall_j2voral, useNA = "always")
-table(r_geschaeftsfall_j3voral, useNA = "always")
-table(r_geschaeftsfall_j4voral, useNA = "always")
-
-# Geschäftsfallfrequenz
-table(r_geschfallfreq_voral)
-data$BUSINESSCASEFREQ <- factor(r_geschfallfreq_voral)
-data$BUSINESSCASEFREQ_order <- factor(r_geschfallfreq_voral, levels = c(0, 1, 2, 3),  ordered = TRUE)
-table(data$BUSINESSCASEFREQ_order)
-is.ordered(data$BUSINESSCASEFREQ_order)
-
-# Maßnahmenteilnahme
-table(r_maßnahmenteilnahme)
-data$SUPPORTMEASURE <- factor(r_maßnahmenteilnahme, levels = c(0, 1, 2, 3), 
-                                   labels = c("kM", "min 1 unterst.", "min 1 qual", "min 1 Bförd"), ordered = FALSE)
-data$SUPPORTMEASURE_order <- factor(data$SUPPORTMEASURE, ordered = TRUE)
-table(data$SUPPORTMEASURE_order)
-is.ordered(data$SUPPORTMEASURE_order)
-
-# Altersgruppe entfällt, da alle unter 30
-# the characteristic AGE GROUP is redefined: less than 20 years (0), 20 to 24 years (20).
-table(ageg)
-data$AGEGROUP <- factor(ageg)
-table(data$AGEGROUP)
-
-# Staatengruppe
-table(r_staatengruppe)  
-data$STATEGROUP <- factor(r_staatengruppe, levels = c("AUT", "DRITT", "EU"), labels =  c("AUT", "DRITT", "EU"), ordered = FALSE)
-table(data$STATEGROUP)
-
-table(birthAT)
-table(birthAT_v)
-table(birthAT_m)
-table(mighint12g_new)
-
-# Abhängige Variable kurzfristiges Kriterium
-# innerhalb von 7 Monaten nach "Meilenstein" insgesamt 90 Tage in ungeförderter Beschäftigung stehend (1), sonst (0)
-table(r_besch)
-data$EMPLOYMENTDAYS <- factor(r_besch, levels = c(0, 1), labels = c("<90 Tage", ">=90 Tage"), ordered = FALSE)
-table(data$EMPLOYMENTDAYS)
-data$truth <- ifelse(data$EMPLOYMENTDAYS == ">=90 Tage", 1, 0)
-table(data$truth)
-
-# Save dataset =================================================================
-saveRDS(data, "data/JuSAW_prepared.rds")
-
-# AMS MODEL ####################################################################
-library(caret) # Confusion Matrix
-library(InformationValue) # Optimal cutoff threshold
-# library(ISLR)
-
-# Import other scripts (like data preperation)
+# Import other scripts
+source("variable_sets.R", encoding="utf-8") # for predefined feature sets
 
 # Split in Training and Test data ----------------------------------------------
 
@@ -231,7 +96,7 @@ model_ams_OR_youth$coefficients <- OR_coefs_youth
 data$prob_ams_OR_youth <- predict(model_ams_OR_youth, data, type="response")
 
 data$class_pred_OR_youth <-ifelse(data$prob_ams_OR_youth > 0.66, 1, 0)
-table(data$class_pred_OR_youth)
+table(data$class_pred_OR_youth, data$truth[is.na(data$class_pred_OR_youth)])
 
 
 # Kurzfristiges Kriterium: Voll valide shcätzbare Population
