@@ -78,10 +78,10 @@ ggplot(data, aes(x = AGEGROUP, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
 # GESCHLECHT_WEIBLICH: Geschlecht weiblich, mit 0= männlich, 1=weiblich --------
 table(data$r_geschlecht, useNA = "always")
 table(data$female, data$r_geschlecht) # lieber female verwenden, hat weniger missings
-data$GENDER_female <- factor(data$female, levels = c("0", "1"), labels = c("male", "female"), ordered = FALSE)
-ggplot(data, aes(x = GENDER_female, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+data$GENDER <- factor(data$female, levels = c("0", "1"), labels = c("male", "female"), ordered = FALSE)
+ggplot(data, aes(x = GENDER, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = "fill")
-ggplot(data, aes(x = GENDER_female, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+ggplot(data, aes(x = GENDER, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = position_dodge(width = 0.5))
 
 # Children ---------------------------------------------------------------------
@@ -93,18 +93,18 @@ table(data$kinder, data$female)
 table(data$kinder)
 
 data$CHILDCARE_both <-factor(data$kinder, levels = c("ja", "nein"), labels =  c("ja", "nein"), ordered = FALSE)
-data$CHILDCARE <- ifelse(data$GENDER_female == "female" & data$CHILDCARE_both =="ja", "ja", "nein")
+data$CHILDCARE <- ifelse(data$GENDER == "female" & data$CHILDCARE_both =="ja", "ja", "nein")
 data$CHILDCARE <- factor(data$CHILDCARE, ordered = FALSE)
-data$CHILDCARE_men <- ifelse(data$GENDER_female == "male" & data$CHILDCARE_both =="ja", "ja", "nein")
+data$CHILDCARE_men <- ifelse(data$GENDER == "male" & data$CHILDCARE_both =="ja", "ja", "nein")
 data$CHILDCARE_men <- factor(data$CHILDCARE_men, ordered = FALSE)
 data$CHILDCARE_both <- relevel(data$CHILDCARE_both, ref = "nein")
 data$CHILDCARE <- relevel(data$CHILDCARE, ref = "nein")
 data$CHILDCARE_men <- relevel(data$CHILDCARE_men, ref = "nein")
 table(data$CHILDCARE_both)
 table(data$CHILDCARE)
-table(data$CHILDCARE, data$GENDER_female)
-table(data$CHILDCARE_men, data$GENDER_female)
-table(data$CHILDCARE_both, data$GENDER_female)
+table(data$CHILDCARE, data$GENDER)
+table(data$CHILDCARE_men, data$GENDER)
+table(data$CHILDCARE_both, data$GENDER)
 
 # Argument für childcare both?
 ggplot(data, aes(x = CHILDCARE_both, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
@@ -125,22 +125,27 @@ ggplot(data, aes(x = CHILDCARE_men, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAY
 table(data$shealth, useNA = "always") # Wie schätzen Sie Ihren allgemeinen Gesundheitszustand ein?
 table(data$lhealth, useNA = "always") # wahrscheinlich beste Wahl - # Werden Sie bei Ihren täglichen Aktivitäten in irgendeiner Weise von einer längeren Krankheit oder einer Behinderung beeinträchtigt?
 table(data$longill, useNA = "always") # Kam es im letzten Jahr vor, dass Sie länger als 6 Wochen ununterbrochen krank waren?
-data$IMPAIRMENT_order <-factor(data$lhealth, levels = c("ja stark", "ja ein wenig", "nein"), 
-                               labels =  c("yes, very", "yes, a little", "no"), ordered =  TRUE)
+data$IMPAIRMENT_order <-factor(data$lhealth, levels = c("ja stark", "ja ein wenig", "nein", "keine Angabe"), 
+                               labels =  c("yes, very", "yes, a little", "no", "not specified"), ordered =  TRUE)
 fct_rev(data$IMPAIRMENT_order)
 data$IMPAIRMENT <-ifelse(data$IMPAIRMENT_order == "yes, very", "yes", "no")
+data$IMPAIRMENT <- ifelse(data$IMPAIRMENT_order == "not specified", NA, data$IMPAIRMENT)
 data$IMPAIRMENT <- factor(data$IMPAIRMENT, ordered = FALSE)
 data$IMPAIRMENT <- relevel(data$IMPAIRMENT, ref = "no")
+
 data$IMPAIRMENT_strong <-ifelse(data$IMPAIRMENT_order == "yes, very" | data$IMPAIRMENT_order == "yes, a little", "yes", "no")
-data$IMPAIRMENT_strong <- factor(data$IMPAIRMENT, ordered = FALSE)
-data$IMPAIRMENT_strong <- relevel(data$IMPAIRMENT, ref = "no")
+data$IMPAIRMENT_strong <- ifelse(data$IMPAIRMENT_order == "not specified", NA, data$IMPAIRMENT_strong)
+data$IMPAIRMENT_strong <- factor(data$IMPAIRMENT_strong, ordered = FALSE)
+data$IMPAIRMENT_strong <- relevel(data$IMPAIRMENT_strong, ref = "no")
+
 is.ordered(data$IMPAIRMENT_order)
 is.ordered(data$IMPAIRMENT)
 
 # Was machen mit den den "keine Angabe" Leuten?
 table(data$IMPAIRMENT_order, useNA = "always")
 table(data$IMPAIRMENT_order, data$lhealth, useNA = "always")
-table(data$IMPAIRMENT, useNA = "always")
+table(data$IMPAIRMENT, data$IMPAIRMENT_order, useNA = "always")
+table(data$IMPAIRMENT_strong, useNA = "always")
 #data <- subset(data, !is.na(IMPAIRMENT))
 ggplot(data, aes(x = IMPAIRMENT, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = "fill")
@@ -207,6 +212,7 @@ ggplot(data, aes(x = RGS, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
 # RGS Typ 1 auslassen, da es nur einmal/zweimal vorkommt/ oder zu 2 hinzutun?
 #data <- subset(data, !is.na(RGS))
 data[data$RGS==1 & !is.na(data$RGS),"RGS"] <- 2
+#data$RGS <- relevel(data$RGS, ref = "1")
 
 
 # Hard Skills ==================================================================
@@ -311,7 +317,7 @@ ggplot(data, aes(x = as.factor(kast2corra), group = EMPLOYMENTDAYS, fill = EMPLO
 data$ability <- data$SDT_grouped +data$tiere_no_grouped + data$drecall_grouped + data$drecall_grouped + 
   4*data$rechnencorr1 + 4*data$rechnencorr2 + 4*data$kast1corra + 4*data$kast2corra
 table(data$ability, useNA = "always")
-ggplot(data, aes(x = EMPLOYMENTDAYS, y = tiere_no)) +
+ggplot(data, aes(x = EMPLOYMENTDAYS, y = ability)) +
   geom_boxplot()
 # Aufteilen in Mathe und sonstige Aufgaben?
 
@@ -336,11 +342,11 @@ ggplot(data, aes(x = OCCUPATIONGROUP, group = EMPLOYMENTDAYS, fill = EMPLOYMENTD
 # Beschäftigungsverlauf
 # BESCHÄFTIGUNGSVERLAUF: Beschäftigungsverlauf vor AL
 table(data$r_beschverl_voral, useNA = "always")
-data$EMPLOYMENT <- factor(data$r_beschverl_voral, levels = c(1, 2), labels = c(">75%", "<75%"), ordered = FALSE)
-table(data$EMPLOYMENT, useNA = "always")
-ggplot(data, aes(x = EMPLOYMENT, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+data$EMPLOYMENTHIST <- factor(data$r_beschverl_voral, levels = c(1, 2), labels = c(">75%", "<75%"), ordered = FALSE)
+table(data$EMPLOYMENTHIST, useNA = "always")
+ggplot(data, aes(x = EMPLOYMENTHIST, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = position_dodge(width = 0.5))
-ggplot(data, aes(x = EMPLOYMENT, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+ggplot(data, aes(x = EMPLOYMENTHIST, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = "fill")
 
 table(data$r_monate_erw_j1voral, useNA = "always")

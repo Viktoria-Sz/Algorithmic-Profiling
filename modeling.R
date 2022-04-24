@@ -6,12 +6,13 @@ library(broom) # für funktion tidy
 library(data.table) # für rbindlist
 #library(modelr)
 library(mlr3verse) # machine learning set-up for modeling
-library(ranger) # Random Forest
+#library(ranger) # Random Forest
 library(mlr3fairness)
 library(DALEX)
 library(DALEXtra)
 library(fairmodels)
 set.seed(42)
+# set.seed(42, "L'Ecuyer")
 
 # Load data ------------------------------------------------------------------------------------------------------------
 # load preperad dataset
@@ -21,67 +22,85 @@ data <- readRDS("data/JuSAW_prepared.rds")
 source("variable_sets.R", encoding="utf-8") # for predefined feature sets
 
 # Task set-up ==========================================================================================================
-# Set up different tasks with different variable sets ------------------------------------------------------------------
-# Original AMS-Model
-task_ams_youth = as_task_classif(data[ams_youth], 
-                                 target = "EMPLOYMENTDAYS", 
-                                 positive = ">=90 Tage", id = "AMS youth")
+# Set up different tasks with different variable sets 
+# AMS Taks -------------------------------------------------------------------------------------------------------------
+# Original AMS-Model youth _____________________________________________________________________________________________
+task_ams_youth = as_task_classif(data[ams_youth], target = "EMPLOYMENTDAYS", positive = ">=90 Days", id = "AMS youth")
+#task_ams_youth = as_task_classif(data[ams_youth], target = "r_besch", positive = 1, id = "AMS youth")
+
 #task_ams_youth$set_col_roles("case", roles = "name")
 
 ids = complete.cases(task_ams_youth$data())
 sum(!ids)
 task_ams_youth$filter(which(ids))
 
-# number of incomplete observations
-# should be zero now
-#ids = complete.cases(task_green$data())
-#sum(!ids)
+# Set protected attribute
+task_ams_youth$col_roles$pta = "GENDER"
+print(task_ams_youth) # 950 Beobachtungen mit 10 Variablen
+
+# Original AMS full ____________________________________________________________________________________________________
+task_ams = as_task_classif(data[ams], target = "EMPLOYMENTDAYS", positive = ">=90 Days", id = "AMS")
+ids = complete.cases(task_ams$data())
+sum(!ids)
+task_ams$filter(which(ids))
 
 # Set protected attribute
-task_ams_youth$col_roles$pta = "GENDER_female"
+task_ams$col_roles$pta = "GENDER"
+print(task_ams) # 950 Beobachtungen mit 10 Variablen
 
-print(task_ams_youth)
-# Logistic regression model with all variables step-procedure ------------------
-# Restricted logistic regression model with all variables ----------------------
+# AMS extended _________________________________________________________________________________________________________
+task_ams_ext = as_task_classif(data[ams_ext], target = "EMPLOYMENTDAYS", positive = ">=90 Days", id = "AMS extended")
+ids = complete.cases(task_ams_ext$data())
+sum(!ids)
+task_ams_ext$filter(which(ids))
 
-# Grenn variables --------------------------------------------------------------
-task_green_all = as_task_classif(data[green_all], 
-                                 target = "EMPLOYMENTDAYS", 
-                                 positive = ">=90 Tage", id = "green_all")
-task_green = as_task_classif(data[green], 
-                             target = "EMPLOYMENTDAYS", 
-                             positive = ">=90 Tage", id = "green")
+# Set protected attribute
+task_ams_ext$col_roles$pta = "GENDER"
+print(task_ams_ext) # 1009 Beobachtungen mit 16 Variablen
+unique(task_ams_ext$feature_types$type)
+
+# Explorative Analysis variables ---------------------------------------------------------------------------------------
+# Green big ____________________________________________________________________________________________________________
+task_green_big = as_task_classif(data[green_big], target = "EMPLOYMENTDAYS", positive = ">=90 Days", id = "green big")
+
+# Green small __________________________________________________________________________________________________________
+task_green = as_task_classif(data[green], target = "EMPLOYMENTDAYS", positive = ">=90 Days", id = "green")
 
 ids = complete.cases(task_green$data())
 sum(!ids)
 task_green$filter(which(ids))
 
-task_green$col_roles$pta = "GENDER_female"
+task_green$col_roles$pta = "GENDER"
+print(task_green) # 743 Beobachtungen mit 30 Variablen
 
-print(task_green)
 
-# Set-up rest ==================================================================
-# Tasks
+unique(task_green$feature_types$type)
+
+# Set-up rest ==========================================================================================================
+# Tasks ----------------------------------------------------------------------------------------------------------------
 tasks = c(task_ams_youth
+          , task_ams
+          , task_ams_ext
           , task_green
           )
 
-# Evaluation measures (use msrs() to get a list of all measures ----------------
+# Evaluation measures (use msrs() to get a list of all measures --------------------------------------------------------
 performance_measures = msrs(c("classif.acc"
                   , "classif.auc"
-                  , "classif.tpr"
-                  , "classif.fpr"
-                  , "classif.ce"
-                  , "classif.fbeta"
+                  #, "classif.tpr"
+                  , "classif.fpr" # Wie viele Leute wurden fälschlich in H Kategorie gruppiert
+                  , "classif.fnr" # Wie viele Leute wurden fälschlich in M Kategorie gruppiert
+                  #, "classif.ce"
+                  #, "classif.fbeta"
                   ))
 
 # Fairness Measure
 fairness_measures = msrs(c("fairness.acc"
                            , "fairness.fpr"
                            , "fairness.fnr"
-                           , "fairness.fomr"
-                           , "fairness.ppv"
-                           , "fairness.eod"
+                           #, "fairness.fomr"
+                           #, "fairness.ppv"
+                           #, "fairness.eod"
                            ))
 # fairness.acc: Absolute differences in accuracy across groups
 # fairness.fpr: Absolute differences in false positive rates across groups
@@ -108,40 +127,71 @@ fairness_measures = msrs(c("fairness.acc"
 #   msr("classif.auc", predict_sets = "train", id = "auc_train"),
 #   msr("classif.auc", id = "auc_test"))
 
-# Resampling strategy ----------------------------------------------------------
+# Resampling strategy --------------------------------------------------------------------------------------------------
 #as.data.table(mlr_resamplings)
 
-resampling = rsmp("holdout", ratio = 0.8)
+resampling = rsmps("holdout", ratio = 0.8)
 #resampling = rsmp("cv", folds = 3)
 
 #rr = resample(task_AMS, learner, resampling, store_models = TRUE)
 
-# Learners ---------------------------------------------------------------------
+# Learners -------------------------------------------------------------------------------------------------------------
+# Penalized logistic regression glmnet _________________________________________________________________________________
+learner_glmnet = lrn("classif.glmnet", predict_type = "prob", predict_sets = "test")
+fencoder = po("encode", method = "treatment", affect_columns = selector_type("factor"))
+ord_to_int = po("colapply", applicator = as.integer, affect_columns = selector_type("ordered"))
+graph = fencoder %>>% ord_to_int %>>% learner_glmnet
+
+graph_glmnet = as_learner(graph)
+
+# xgboost ______________________________________________________________________________________________________________
+learner_xgboost = lrn("classif.xgboost", predict_type = "prob", predict_sets = "test")
+graph = fencoder %>>% ord_to_int %>>% learner_xgboost
+
+graph_xgboost = as_learner(graph)
+
+# SVM __________________________________________________________________________________________________________________
+learner_svm = lrn("classif.svm", predict_type = "prob", predict_sets = "test")
+graph = fencoder %>>% ord_to_int %>>% learner_svm
+
+graph_svm = as_learner(graph)
+
+# All __________________________________________________________________________________________________________________
 learners = lrns(c( "classif.featureless"
                    ,"classif.log_reg" # logistic regression
                    #,"classif.glmnet" # penalized logistic regression
                    ,"classif.rpart" # Decision tree
                    ,"classif.ranger" # Random Forest
                    #,"classif.xgboost"
+                   , "classif.kknn"
+                   #, "classif.svm"
                    ), 
                 predict_type = "prob", predict_sets = "test") #  "train", "holdout"
 
-# Benchmark design -------------------------------------------------------------
+#lapply(learners, function(i) i$feature_types)
+
+# Benchmark design -----------------------------------------------------------------------------------------------------
+# Wenn ich das neu aufrufe kommen andere Ergebnisse raus...
+# Holdout sample ist immer neu
+# Jetzt mit set.seed direkt davor geht es, aber weiter beobachten
+set.seed(42)
 design = benchmark_grid(tasks = tasks, 
-                        learners = learners,
+                        learners = c(learners, graph_glmnet, graph_xgboost, graph_svm),
                         resamplings = resampling)
 
 
-# Training =====================================================================
+# Training =============================================================================================================
 #execute_start_time <- Sys.time()
 bmr = benchmark(design, store_models = TRUE)
 #evaluation_time <- Sys.time() - execute_start_time 
 #rm(execute_start_time)
 
-bmr_ams <- bmr$clone(deep = TRUE)$filter(task_id = "AMS youth train")
-bmr_green <- bmr$clone(deep = TRUE)$filter(task_id = "green train")
+bmr_ams_youth <- bmr$clone(deep = TRUE)$filter(task_id = "AMS youth")
+bmr_ams <- bmr$clone(deep = TRUE)$filter(task_id = "AMS")
+bmr_ams_ext <- bmr$clone(deep = TRUE)$filter(task_id = "AMS extended")
+bmr_green <- bmr$clone(deep = TRUE)$filter(task_id = "green")
 
-# Evaluation ===================================================================
+# Evaluation ===========================================================================================================
 print(bmr)
 
 # set threshold before calculating measures!!
@@ -152,19 +202,171 @@ print(bmr)
 #bmr$aggregate(c(performance_measures, fairness_measures))
 bmr$score(c(performance_measures, fairness_measures))
 
+
 # Set threshold to 66% as in the ams paper
 tab_bmr <- as.data.table(bmr)
 lapply(tab_bmr$prediction, function(i) i$set_threshold(0.66))
 
+tab_bmr$prediction[[1]]$confusion
+tab_bmr$prediction[[1]]$score(measures = c(performance_measures, fairness_measures), task = tab_bmr$task[[1]])
+tab_bmr$task[[2]]$id
+tab_bmr$task[[2]]$col_roles$pta
+tab_bmr$learner[[2]]$id
+
+
+lapply(tab_bmr$prediction, 
+       function(i) i$score(measures = c(performance_measures, fairness_measures), task = task_ams_youth))
+
+
+# Predictions ==========================================================================================================
+
+# Explain and fairmodels ===============================================================================================
+# Explain objects ------------------------------------------------------------------------------------------------------
+tab_bmr$learner[[2]]$model
+mlr3misc::map(tab_bmr$learner, "model")
+
+# AMS Youth ____________________________________________________________________________________________________________
+ids_ams_youth = complete.cases(data[ams_youth])
+log_explain_ams_youth <- explain_mlr3(tab_bmr$learner[[2]]$model,
+                            data = data[ids_ams_youth, ams_youth[-1]],
+                            y = data$r_besch[ids_ams_youth],
+                            label = "Log ams youth")
+rpart_explain_ams_youth <- explain_mlr3(tab_bmr$learner[[3]]$model,
+                              data = data[ids_ams_youth, ams_youth[-1]],
+                              y = data$r_besch[ids_ams_youth],
+                              label = "rpart ams youth")
+ranger_explain_ams_youth <- explain_mlr3(tab_bmr$learner[[4]]$model,
+                               data = data[ids_ams_youth, ams_youth[-1]],
+                               y = data$r_besch[ids_ams_youth],
+                               label = "ranger ams youth")
+
+fobject_ams_youth <- fairness_check(log_explain_ams_youth, rpart_explain_ams_youth, ranger_explain_ams_youth,
+                          protected = data$GENDER[ids_ams_youth],
+                          privileged = "male",
+                          cutoff = 0.66,
+                          verbose = FALSE)
+
+plot(fobject_ams_youth)
+fheatmap_ams_youth <- fairness_heatmap(fobject_ams_youth)
+plot(fheatmap_ams_youth)
+
+# AMS full _____________________________________________________________________________________________________________
+ids_ams = complete.cases(data[ams])
+log_explain_ams <- explain_mlr3(tab_bmr$learner[[6]]$model,
+                            data = data[ids_ams, ams[-1]],
+                            y = data$r_besch[ids_ams],
+                            label = "Log ams")
+rpart_explain_ams <- explain_mlr3(tab_bmr$learner[[7]]$model,
+                              data = data[ids_ams, ams[-1]],
+                              y = data$r_besch[ids_ams],
+                              label = "rpart ams")
+ranger_explain_ams <- explain_mlr3(tab_bmr$learner[[8]]$model,
+                               data = data[ids_ams, ams[-1]],
+                               y = data$r_besch[ids_ams],
+                               label = "ranger ams")
+
+fobject_ams <- fairness_check(log_explain_ams, rpart_explain_ams, ranger_explain_ams,
+                          protected = data$GENDER[ids_ams],
+                          privileged = "male",
+                          cutoff = 0.66,
+                          verbose = FALSE)
+
+fobject_ams$parity_loss_metric_data
+fobject_ams$groups_data
+fobject_ams$fairness_check_data
+
+plot(fobject_ams)
+plot_density(fobject_ams)
+plot(metric_scores(fobject_ams))
+plot(stack_metrics(fobject_ams))
+plot(choose_metric(fobject_ams, "FPR"))
+plot(performance_and_fairness(fobject_ams, fairness_metric = "FPR"))
+plot(group_metric(fobject, fairness_metric = "FPR"))
+
+fheatmap_ams <- fairness_heatmap(fobject_ams)
+plot(fheatmap_ams)
+
+# AMS extended _________________________________________________________________________________________________________
+ids_ams_ext = complete.cases(data[ams_ext])
+log_explain_ams_ext <- explain_mlr3(tab_bmr$learner[[10]]$model,
+                            data = data[ids_ams_ext, ams_ext[-1]],
+                            y = data$r_besch[ids_ams_ext],
+                            label = "Log ams ext")
+rpart_explain_ams_ext <- explain_mlr3(tab_bmr$learner[[11]]$model,
+                              data = data[ids_ams_ext, ams_ext[-1]],
+                              y = data$r_besch[ids_ams_ext],
+                              label = "rpart ams ext")
+ranger_explain_ams_ext <- explain_mlr3(tab_bmr$learner[[12]]$model,
+                               data = data[ids_ams_ext, ams_ext[-1]],
+                               y = data$r_besch[ids_ams_ext],
+                               label = "ranger ams ext")
+
+fobject <- fairness_check(log_explain_ams_ext, rpart_explain_ams_ext, ranger_explain_ams_ext,
+                          protected = data$GENDER[ids_ams_ext],
+                          privileged = "male",
+                          cutoff = 0.66,
+                          verbose = FALSE)
+
+fheatmap <- fairness_heatmap(fobject)
+plot(fheatmap)
+
+# Green ________________________________________________________________________________________________________________
+ids_green = complete.cases(data[green])
+log_explain_green <- explain_mlr3(tab_bmr$learner[[14]]$model,
+                            data = data[ids_green, green[-1]],
+                            y = data$r_besch[ids_green],
+                            label = "Log green")
+rpart_explain_green <- explain_mlr3(tab_bmr$learner[[15]]$model,
+                              data = data[ids_green, green[-1]],
+                              y = data$r_besch[ids_green],
+                              label = "rpart green")
+ranger_explain_green <- explain_mlr3(tab_bmr$learner[[16]]$model,
+                               data = data[ids_green, green[-1]],
+                               y = data$r_besch[ids_green],
+                               label = "ranger green")
+
+fobject <- fairness_check(log_explain_green, rpart_explain_green, ranger_explain_green,
+                          protected = data$GENDER[ids_green],
+                          privileged = "male",
+                          cutoff = 0.66,
+                          verbose = FALSE)
+
+fheatmap <- fairness_heatmap(fobject)
+plot(fheatmap)
+
+# Fairmodels -----------------------------------------------------------------------------------------------------------
+plot(metric_scores(fobject))
+sm <- stack_metrics(fobject)
+plot(sm)
+fair_pca <- fairness_pca(fobject)
+print(fair_pca)
+plot(fair_pca)
+
+fheatmap <- fairness_heatmap(fobject)
+plot(fheatmap)
+
+fap <- performance_and_fairness(fobject, fairness_metric = "TPR")
+plot(fap)
+
+ac <- all_cutoffs(fobject)
+plot(ac)
+
+
+
+# RESTE ################################################################################################################
+
+# Benchmark threshold heatmaps zeug ------------------------------------------------------------------------------------
+# Save log_reg coefficients
+# ams_youth_logcoefs <- tab_bmr$learner[[2]]$model$coefficients
+# ams_logcoefs <- tab_bmr$learner[[6]]$model$coefficients
+# saveRDS(ams_youth_logcoefs, "models/ams_youth_log_coefs.rds")
+# saveRDS(ams_logcoefs, "models/ams_log_coefs.rds")
 
 # Aggregate measures as in bmr$score
-tab_bmr$task
 ams_youth_task_measures <- lapply(tab_bmr$prediction[1:4], 
-       function(i) i$score(measures = c(performance_measures, fairness_measures),
-                                               task = task_ams_youth))
+                                  function(i) i$score(measures = c(performance_measures, fairness_measures), task = task_ams_youth))
 green_task_measures <- lapply(tab_bmr$prediction[5:8], 
-       function(i) i$score(measures = c(performance_measures, fairness_measures),
-                           task = task_green))
+                              function(i) i$score(measures = c(performance_measures, fairness_measures), task = task_green))
 
 ams_youth_task <- rbindlist(lapply(ams_youth_task_measures, tidy), idcol=TRUE)
 ams_youth_task <- ams_youth_task %>%
@@ -194,7 +396,7 @@ confusion_list_0.66 <- lapply(tab_bmr$prediction, function(i) i$confusion)
 # names(confusion_list_0.5) <- c("ams featureless", "ams Log_reg", "ams rpart", "ams ranger",
 #                            "green featureless", "green Log_reg", "green rpart", "green ranger")
 names(confusion_list_0.66) <- c("ams featureless", "ams Log_reg", "ams rpart", "ams ranger",
-                               "green featureless", "green Log_reg", "green rpart", "green ranger")
+                                "green featureless", "green Log_reg", "green rpart", "green ranger")
 
 
 # Heatmap with meausres
@@ -217,14 +419,20 @@ p_0.5 <- ggplot(measures_table_0.5, aes(measure_id, id, fill = measure_value)) +
 library(plotly)
 ggplotly(p_0.66)
 
-# Visualisation of measures ----------------------------------------------------
+# Visualisation of measures --------------------------------------------------------------------------------------------
 # All available plot types are listed on the manual page of autoplot.ResampleResult().
 # CE Plot
 autoplot(bmr) + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 
 # ROC curves for tasks
-autoplot(bmr_ams, type = "roc")
-autoplot(bmr_green, type = "roc")
+autoplot(bmr_ams, type = "roc") +
+  ggtitle("AMS full")
+autoplot(bmr_ams_youth, type = "roc") +
+  ggtitle("AMS Youth")
+autoplot(bmr_ams_ext, type = "roc") +
+  ggtitle("AMS extended")
+autoplot(bmr_green, type = "roc") +
+  ggtitle("Green")
 
 # Ranked Performance
 ranks_performace = tab[, .(learner_id, task_id, rank_train = rank(-classif.auc))] %>% 
@@ -236,63 +444,15 @@ fairness_accuracy_tradeoff(bmr)
 compare_metrics(bmr, fairness_measure)
 fairness_prediction_density(bmr)
 
-# Heatmaps =====================================================================
+# Heatmaps =============================================================================================================
 ams_youth_heatmap <- tab[task_id == "AMS youth", c(4, 7:14)]
 ams_youth_heatmap <- column_to_rownames(ams_youth_heatmap, var="learner_id")
 ams_youth_heatmap <- as.matrix(ams_youth_heatmap)
 heatmap(ams_youth_heatmap, scale = "column")
 
-# Predictions ==================================================================
-
-# Explain and fairmodels =======================================================
-# Explain objects --------------------------------------------------------------
-tab_bmr$learner[[2]]$model
-mlr3misc::map(tab_bmr$learner, "model")
-
-ids = complete.cases(data[ams])
-log_explain <- explain_mlr3(tab_bmr$learner[[2]]$model,
-                            data = data[ids, ams_youth[-1]],
-                            y = data$r_besch[ids],
-                            label = "Log ams youth")
-rpart_explain <- explain_mlr3(tab_bmr$learner[[3]]$model,
-                              data = data[ids, ams_youth[-1]],
-                              y = data$r_besch[ids],
-                              label = "rpart ams youth")
-ranger_explain <- explain_mlr3(tab_bmr$learner[[4]]$model,
-                               data = data[ids, ams_youth[-1]],
-                               y = data$r_besch[ids],
-                               label = "ranger ams youth")
-
-# Fairmodels -------------------------------------------------------------------
-fobject <- fairness_check(log_explain, rpart_explain, ranger_explain,
-                          protected = data$GENDER_female[ids],
-                          privileged = "male",
-                          cutoff = 0.66,
-                          verbose = FALSE)
-fobject$parity_loss_metric_data
-fobject$fairness_check_data
-plot(fobject)
-plot_density(fobject)
-plot(metric_scores(fobject))
-sm <- stack_metrics(fobject)
-plot(sm)
-fair_pca <- fairness_pca(fobject)
-print(fair_pca)
-plot(fair_pca)
-
-fheatmap <- fairness_heatmap(fobject)
-plot(fheatmap)
-
-fap <- performance_and_fairness(fobject, fairness_metric = "TPR")
-plot(fap)
-
-ac <- all_cutoffs(fobject)
-plot(ac)
 
 
-
-# RESTE ########################################################################
-# Choose the best model and fit on whole dataset 
+# Choose the best model and fit on whole dataset -----------------------------------------------------------------------
 # Wir hatten oben log.reg ausgewählt, random forest oder knn waren aber genauso gut
 # Choose final model
 learner_final = lrn("classif.log_reg",predict_type = "prob")

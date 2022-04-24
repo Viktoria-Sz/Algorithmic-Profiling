@@ -4,19 +4,24 @@
 # Original AMS variables -------------------------------------------------------
 # WICHTIG: Für junge Leute unter 25:
 # Für diese Population werden die Merkmale STAATENGRUPPE, GESCHÄFTSFALLDAUER und BESCHÄFTIGUNGSVERLAUF nicht für die Schätzung verwendet.
-ams_youth <- c("EMPLOYMENTDAYS", "GENDER_female", "AGEGROUP", "EDUCATION", "CHILDCARE", "RGS", 
-               "IMPAIRMENT", "OCCUPATIONGROUP", "BUSINESSCASEFREQ", "SUPPORTMEASURE")
+ams_youth <- c("EMPLOYMENTDAYS", "GENDER", "AGEGROUP", "EDUCATION", "CHILDCARE", "RGS", 
+               "IMPAIRMENT_strong", "OCCUPATIONGROUP", "BUSINESSCASEFREQ", "SUPPORTMEASURE")
 
-ams <- c("EMPLOYMENTDAYS", "GENDER_female", "AGEGROUP", "STATEGROUP", "EDUCATION", "CHILDCARE", "RGS", 
-         "IMPAIRMENT", "OCCUPATIONGROUP", "EMPLOYMENT", "BUSINESSCASEFREQ", 
+ams <- c("EMPLOYMENTDAYS", "GENDER", "AGEGROUP", "STATEGROUP", "EDUCATION", "CHILDCARE", "RGS", 
+         "IMPAIRMENT_strong", "OCCUPATIONGROUP", "EMPLOYMENTHIST", "BUSINESSCASEFREQ", 
          "BUSINESSCASEDUR", "SUPPORTMEASURE")
 
 # Expanded AMS Variables -------------------------------------------------------
-ams_exp <- c("EMPLOYMENTDAYS", "GENDER_female", "AGEGROUP", "EDUCATION", "CHILDCARE_both", "RGS", 
-             "IMPAIRMENT", "OCCUPATIONGROUP_all", "BUSINESSCASEFREQ" , "SUPPORTMEASURE")
+ams_ext <- c("EMPLOYMENTDAYS", "GENDER", "AGEGROUP", "STATEGROUP", "EDUCATION", "CHILDCARE_both", "RGS", 
+             "IMPAIRMENT_order", "OCCUPATIONGROUP_all",  #"EMPLOYMENTHIST",
+             "r_monate_erw_j1voral", "r_monate_erw_j2voral", "r_monate_erw_j3voral", "r_monate_erw_j4voral",
+             #"r_geschaeftsfall_j1voral", "r_geschaeftsfall_j2voral", "r_geschaeftsfall_j3voral", "r_geschaeftsfall_j4voral",
+             "BUSINESSCASEFREQ_order" , "BUSINESSCASEDUR", "SUPPORTMEASURE_order"
+             
+             )
 
 # Green Variables --------------------------------------------------------------
-green_all <- c(ams, "zusage", "match", "jobsat", "vertrag", "endreason", "ALexp", "exp",
+green_big <- c(ams, "zusage", "match", "jobsat", "vertrag", "endreason", "ALexp", "exp",
                "intrins", "extrins", "lottery", "lifesat", "prefcat",
                "a_instrumental", "a_belong", "a_interest", "reserve", 
                "sw_träumer", "sw_wertlos", "sw_selbstzweifel", "sw_zukunftsangst",
@@ -38,7 +43,7 @@ green <- c(ams, "zusage", "ALexp",
            "intrins", "extrins", "prefcat", "a_instrumental", "trust",
            "reserve", "sw_selbstwert", "gewissenh",
            "depressrisk_WHO", "alkohol", "socialcomp", 
-           "SDT", "recall", "tiere_no" , "relig_islam", "ability"
+           "SDT", "recall" , "relig_islam", "ability"
 )
 
 # Variable sets other paper ----------------------------------------------------
