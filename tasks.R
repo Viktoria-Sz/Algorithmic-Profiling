@@ -44,12 +44,22 @@ task_ams_ext$filter(which(ids))
 
 # Set protected attribute
 task_ams_ext$col_roles$pta = "GENDER"
+
 print(task_ams_ext) # 1009 Beobachtungen mit 16 Variablen
 unique(task_ams_ext$feature_types$type)
 
 # Explorative Analysis variables ---------------------------------------------------------------------------------------
 # Green big ____________________________________________________________________________________________________________
 task_green_big = as_task_classif(data[green_big], target = "EMPLOYMENTDAYS", positive = ">=90 Days", id = "green big")
+ids = complete.cases(task_green_big$data())
+sum(!ids)
+task_green_big$filter(which(ids))
+
+# Set protected attribute
+task_green_big$col_roles$pta = "GENDER"
+
+print(task_green_big) # 1009 Beobachtungen mit 16 Variablen
+unique(task_green_big$feature_types$type)
 
 # Green small __________________________________________________________________________________________________________
 task_green = as_task_classif(data[green], target = "EMPLOYMENTDAYS", positive = ">=90 Days", id = "green")

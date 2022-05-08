@@ -98,7 +98,7 @@ graph = fencoder %>>% ord_to_int %>>% learner_svm
 graph_svm = as_learner(graph)
 
 # All __________________________________________________________________________________________________________________
-learners = lrns(c( "classif.featureless"
+learners = lrns(c( "classif.featureless" # method: mode
                    ,"classif.log_reg" # logistic regression
                    #,"classif.glmnet" # penalized logistic regression
                    ,"classif.rpart" # Decision tree
@@ -143,10 +143,33 @@ print(bmr)
 #bmr$aggregate(c(performance_measures, fairness_measures))
 bmr$score(c(performance_measures, fairness_measures))
 
+autoplot(bmr, type = "boxplot", measure = msr("classif.auc")) +
+  theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
+
+# ROC curve
+# Sensitivity = Recall = TPR = Wie viele Leute wurden richtig in H Kategorie gruppiert TP/(TP + FN)
+# Specificity = TNR = Wie viele Leute wurden richtig in M Kategorie gruppiert = TN/(TN + FP)
+# 1 – specificity = False positive rate (FPR) = Wie viele wurden fälschlich in Kategorie H gruppiert
+autoplot(bmr_ams_youth, type = "roc")
+autoplot(bmr_ams, type = "roc")
+autoplot(bmr_ams_ext, type = "roc")
+autoplot(bmr_green, type = "roc")
+# ROC curve mit bestem Modell je Task und dann zusammen?
+
+# Precision, Recall Plot
+# Recall = Sensitivity = TPR = Wie viele Leute wurden richtig in H Kategorie gruppiert
+# Precision = Positive predictive value = TP/(TP + FP)
+autoplot(bmr_ams_youth, type = "prc")
+autoplot(bmr_ams, type = "prc")
+autoplot(bmr_ams_ext, type = "prc")
+autoplot(bmr_green, type = "prc")
+# The ratio of positives and negatives defines the baseline. What is it?
+
 
 # Set threshold to 66% as in the ams paper
 tab_bmr <- as.data.table(bmr)
 lapply(tab_bmr$prediction, function(i) i$set_threshold(0.66))
+
 
 tab_bmr$prediction[[1]]$confusion
 tab_bmr$prediction[[1]]$score(measures = c(performance_measures, fairness_measures), task = tab_bmr$task[[1]])
@@ -157,6 +180,9 @@ tab_bmr$learner[[2]]$id
 
 lapply(tab_bmr$prediction, 
        function(i) i$score(measures = c(performance_measures, fairness_measures), task = task_ams_youth))
+
+
+
 
 
 # Predictions ==========================================================================================================
@@ -180,8 +206,27 @@ ranger_explain_ams_youth <- explain_mlr3(tab_bmr$learner[[4]]$model,
                                data = data[ids_ams_youth, ams_youth[-1]],
                                y = data$r_besch[ids_ams_youth],
                                label = "ranger ams youth")
+kknn_explain_ams_youth <- explain_mlr3(tab_bmr$learner[[5]]$model,
+                                         data = data[ids_ams_youth, ams_youth[-1]],
+                                         y = data$r_besch[ids_ams_youth],
+                                         label = "kknn ams youth")
+glmnet_explain_ams_youth <- explain_mlr3(tab_bmr$learner[[6]]$model,
+                                         data = data[ids_ams_youth, ams_youth[-1]],
+                                         y = data$r_besch[ids_ams_youth],
+                                         label = "glmnet ams youth")
+xgboost_explain_ams_youth <- explain_mlr3(tab_bmr$learner[[7]]$model,
+                                         data = data[ids_ams_youth, ams_youth[-1]],
+                                         y = data$r_besch[ids_ams_youth],
+                                         label = "xgboost ams youth")
+svm_explain_ams_youth <- explain_mlr3(tab_bmr$learner[[8]]$model,
+                                          data = data[ids_ams_youth, ams_youth[-1]],
+                                          y = data$r_besch[ids_ams_youth],
+                                          label = "svm ams youth")
+
+# graph_glmnet, graph_xgboost, graph_svm
 
 fobject_ams_youth <- fairness_check(log_explain_ams_youth, rpart_explain_ams_youth, ranger_explain_ams_youth,
+                                    #kknn_explain_ams_youth, glmnet_explain_ams_youth, xgboost_explain_ams_youth, svm_explain_ams_youth,
                           protected = data$GENDER[ids_ams_youth],
                           privileged = "male",
                           cutoff = 0.66,
