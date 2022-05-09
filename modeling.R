@@ -28,21 +28,30 @@ tasks = c(task_ams_youth
 # Evaluation measures (use msrs() to get a list of all measures --------------------------------------------------------
 performance_measures = msrs(c("classif.acc"
                   , "classif.auc"
-                  #, "classif.tpr"
-                  , "classif.fpr" # Wie viele Leute wurden fälschlich in H Kategorie gruppiert
-                  , "classif.fnr" # Wie viele Leute wurden fälschlich in M Kategorie gruppiert
+                  , "classif.tpr" # Wie viele Leute wurden richtig in H Kategorie gruppiert
+                  , "classif.tnr" # Wie viele Leute wurden richtig in M Kategorie gruppiert
+                  #, "classif.fpr" # Wie viele Leute wurden fälschlich in H Kategorie gruppiert
+                  #, "classif.fnr" # Wie viele Leute wurden fälschlich in M Kategorie gruppiert
                   #, "classif.ce"
                   #, "classif.fbeta"
                   ))
 
 # Fairness Measure
-fairness_measures = msrs(c("fairness.acc"
-                           , "fairness.fpr"
-                           , "fairness.fnr"
+fairness_measures_absdiff = msrs(c("fairness.acc"
+                           , "fairness.tpr"
+                           , "fairness.tnr"
                            #, "fairness.fomr"
                            #, "fairness.ppv"
                            #, "fairness.eod"
                            ))
+
+fairness_measures_diff = c(msr("fairness.acc", operation = groupdiff_diff)
+                      , msr("fairness.tpr", operation = groupdiff_diff)
+                      , msr("fairness.tnr", operation = groupdiff_diff)
+                      )
+
+group_measures = groupwise_metrics(msr("classif.acc"), task_ams_youth)
+
 # fairness.acc: Absolute differences in accuracy across groups
 # fairness.fpr: Absolute differences in false positive rates across groups
 # -> In my case the FPR represents the unemployed who falsely got into the H group
@@ -141,7 +150,9 @@ print(bmr)
 # Measure results
 # I guess aggregate is only important for cv -> check
 #bmr$aggregate(c(performance_measures, fairness_measures))
-bmr$score(c(performance_measures, fairness_measures))
+bmr$score(c(performance_measures, fairness_measures_diff))
+# fairness measures: male - female -> positiv male ist größer, negativ female ist größer
+bmr$score(group_measures)
 
 autoplot(bmr, type = "boxplot", measure = msr("classif.auc")) +
   theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
@@ -177,15 +188,20 @@ tab_bmr$task[[2]]$id
 tab_bmr$task[[2]]$col_roles$pta
 tab_bmr$learner[[2]]$id
 
+# Get model and task namelist combination for the following computations
+task_ids = lapply(tab_bmr$task, function(i) i$id)
+learner_ids = lapply(tab_bmr$learner, function(i) i$id)
+task_learner_ids = paste(task_ids, learner_ids, sep=", ")
 
-lapply(tab_bmr$prediction, 
-       function(i) i$score(measures = c(performance_measures, fairness_measures), task = task_ams_youth))
+# Confusion Matrix for all models
+confusion_list = lapply(tab_bmr$prediction, function(i) i$confusion)
+names(confusion_list) <- task_learner_ids
 
+# Predcitions for all models
+prediction_list = lapply(tab_bmr$prediction, 
+       function(i) i$score(measures = c(performance_measures, fairness_measures_absdiff), task = task_ams_youth))
+names(prediction_list) <- task_learner_ids
 
-
-
-
-# Predictions ==========================================================================================================
 
 # Explain and fairmodels ===============================================================================================
 # Explain objects ------------------------------------------------------------------------------------------------------
