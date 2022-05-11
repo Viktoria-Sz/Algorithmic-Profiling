@@ -27,27 +27,30 @@ tasks = c(task_ams_youth
 
 # Evaluation measures (use msrs() to get a list of all measures --------------------------------------------------------
 performance_measures = msrs(c("classif.acc"
-                  , "classif.auc"
+                  , "classif.auc" # id = "AUC"
                   , "classif.tpr" # Wie viele Leute wurden richtig in H Kategorie gruppiert
                   , "classif.tnr" # Wie viele Leute wurden richtig in M Kategorie gruppiert
-                  #, "classif.fpr" # Wie viele Leute wurden fälschlich in H Kategorie gruppiert
-                  #, "classif.fnr" # Wie viele Leute wurden fälschlich in M Kategorie gruppiert
+                  , "classif.fpr" # Wie viele Leute wurden fälschlich in H Kategorie gruppiert
+                  , "classif.fnr" # Wie viele Leute wurden fälschlich in M Kategorie gruppiert
                   #, "classif.ce"
-                  #, "classif.fbeta"
+                  , "classif.fbeta"
                   ))
 
 # Fairness Measure
 fairness_measures_absdiff = msrs(c("fairness.acc"
                            , "fairness.tpr"
                            , "fairness.tnr"
-                           #, "fairness.fomr"
-                           #, "fairness.ppv"
-                           #, "fairness.eod"
+                           , "fairness.fomr"
+                           , "fairness.ppv"
+                           , "fairness.eod"
                            ))
 
 fairness_measures_diff = c(msr("fairness.acc", operation = groupdiff_diff)
                       , msr("fairness.tpr", operation = groupdiff_diff)
                       , msr("fairness.tnr", operation = groupdiff_diff)
+                      , msr("fairness.fomr", operation = groupdiff_diff)
+                      , msr("fairness.ppv", operation = groupdiff_diff)
+                      , msr("fairness.eod", operation = groupdiff_diff)
                       )
 
 group_measures = groupwise_metrics(msr("classif.acc"), task_ams_youth)
@@ -79,9 +82,10 @@ group_measures = groupwise_metrics(msr("classif.acc"), task_ams_youth)
 
 # Resampling strategy --------------------------------------------------------------------------------------------------
 #as.data.table(mlr_resamplings)
-
-resampling = rsmps("holdout", ratio = 0.8)
-#resampling = rsmp("cv", folds = 3)
+# 5 fold cross validation for inner loop
+resampling_inner_3CV = rsmp("cv", folds = 3L)
+# Holdout for outer loop
+resampling_outer_ho = rsmps("holdout", ratio = 0.8)
 
 #rr = resample(task_AMS, learner, resampling, store_models = TRUE)
 
@@ -95,6 +99,7 @@ graph = fencoder %>>% ord_to_int %>>% learner_glmnet
 graph_glmnet = as_learner(graph)
 
 # xgboost ______________________________________________________________________________________________________________
+lrn("classif.rpart")$param_set
 learner_xgboost = lrn("classif.xgboost", predict_type = "prob", predict_sets = "test")
 graph = fencoder %>>% ord_to_int %>>% learner_xgboost
 
@@ -106,7 +111,33 @@ graph = fencoder %>>% ord_to_int %>>% learner_svm
 
 graph_svm = as_learner(graph)
 
+search_space = ps(cost = p_dbl(0.1, 10), kernel = p_fct(c("polynomial", "radial")))
+print(search_space)
+# see searchspace grid
+# rbindlist(generate_design_grid(search_space, 3)$transpose())
+
+# The Support Vector Machine (SVM), for example, has the degree parameter that is only valid when kernel is "polynomial"
+search_space = ps(
+  cost = p_dbl(-1, 1, trafo = function(x) 10^x),
+  kernel = p_fct(c("polynomial", "radial")),
+  degree = p_int(1, 3, depends = kernel == "polynomial")
+)
+rbindlist(generate_design_grid(search_space, 3)$transpose(), fill = TRUE)
+
+# Regression Tree ______________________________________________________________________________________________________
+# The complexity hyperparameter cp that controls when the learner considers introducing another branch.
+# The minsplit hyperparameter that controls how many observations must be present in a leaf for another split to be attempted.
+
+search_space = ps(
+  cp = p_dbl(lower = 0.001, upper = 0.1),
+  minsplit = p_int(lower = 1, upper = 10)
+)
+
 # All __________________________________________________________________________________________________________________
+lrn("classif.rpart")$param_set
+lrn("classif.ranger")$param_set
+lrn("classif.kknn")$param_set
+
 learners = lrns(c( "classif.featureless" # method: mode
                    ,"classif.log_reg" # logistic regression
                    #,"classif.glmnet" # penalized logistic regression
@@ -120,6 +151,10 @@ learners = lrns(c( "classif.featureless" # method: mode
 
 #lapply(learners, function(i) i$feature_types)
 
+# Setting Parameter for Autotune -----------------------------------------------
+
+measures_tuning = msr("classif.auc")
+
 # Benchmark design -----------------------------------------------------------------------------------------------------
 # Wenn ich das neu aufrufe kommen andere Ergebnisse raus...
 # Holdout sample ist immer neu
@@ -127,7 +162,7 @@ learners = lrns(c( "classif.featureless" # method: mode
 set.seed(42)
 design = benchmark_grid(tasks = tasks, 
                         learners = c(learners, graph_glmnet, graph_xgboost, graph_svm),
-                        resamplings = resampling)
+                        resamplings = resampling_outer_ho)
 
 
 # Training =============================================================================================================
@@ -197,10 +232,80 @@ task_learner_ids = paste(task_ids, learner_ids, sep=", ")
 confusion_list = lapply(tab_bmr$prediction, function(i) i$confusion)
 names(confusion_list) <- task_learner_ids
 
-# Predcitions for all models
-prediction_list = lapply(tab_bmr$prediction, 
+# Scores for all models
+scores_list = lapply(tab_bmr$prediction, 
        function(i) i$score(measures = c(performance_measures, fairness_measures_absdiff), task = task_ams_youth))
+names(scores_list) <- task_learner_ids
+
+# Predcitions for all models
+prediction_list = tab_bmr$prediction
 names(prediction_list) <- task_learner_ids
+
+# Visualizations =======================================================================================================
+fairness_prediction_density(prediction_list[[2]], task_ams_youth)
+fairness_prediction_density(bmr_ams_youth)
+
+fairness_accuracy_tradeoff(bmr_ams_youth, msr("fairness.fpr"))
+
+compare_metrics(bmr_ams_youth, msrs(c("classif.acc", "classif.auc", "fairness.fpr")))+
+  theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
+
+# Heatmap function -----------------------------------------------------------------------------------------------------
+heatmap <- function(df, var_y, var_x, fill) {
+  var_x <- enquo(var_x) # Variable verwendbar machen in ggplot
+  var_y <- enquo(var_y) # Variable verwendbar machen in ggplot
+  fill <- enquo(fill) # Variable verwendbar machen in ggplot
+  
+  ggplot(df, aes(y= !!var_y, x = !!var_x, fill = !!fill)) +
+    geom_tile() +
+    theme(axis.title.x=element_blank(),axis.title.y=element_blank(),
+          axis.text.x = element_text(angle = 70, vjust = 1, hjust=1)) + 
+    geom_text(aes(label = round(!!fill, 2))) +
+    scale_fill_distiller(palette = "OrRd", direction = 1, limits = c(0,1)) 
+}
+
+
+# Heatmap for performance metrics --------------------------------------------------------------------------------------
+scores_list[[2]][1:4]
+names(scores_list)[2]
+
+# Performance data
+table_performance <- data.frame(matrix(ncol = 3, nrow = 0))
+names <- c("measure", "score", "model")
+colnames(table_performance) <- names
+
+for(i in 1:32){
+  model_scores <- scores_list[[i]][1:4]
+  table <- rownames_to_column(as.data.frame(model_scores), "measure") %>%
+    rename(score = "model_scores") %>%
+    mutate(model = names(scores_list)[i])
+  table_performance <- rbind(table_performance, table)
+}
+
+# Heatmap performance AMS youth
+heatmap(table_performance[1:32,], model, measure, score) +
+  ggtitle(label = "Heatmap with performance measures for threshold 0.66 for AMS Youth")
+
+
+# Heatmap for fairness metrics -----------------------------------------------------------------------------------------
+scores_list[[2]][5:7]
+names(scores_list)[2]
+
+# Fairness data
+table_fairness <- data.frame(matrix(ncol = 3, nrow = 0))
+colnames(table_fairness) <- names
+
+for(i in 1:32){
+  model_scores <- scores_list[[i]][5:7]
+  table <- rownames_to_column(as.data.frame(model_scores), "measure") %>%
+    rename(score = "model_scores") %>%
+    mutate(model = names(scores_list)[i])
+  table_fairness <- rbind(table_fairness, table)
+}
+
+# Heatmap fairness AMS Youth
+heatmap(table_fairness[1:32,], model, measure, score) +
+  ggtitle(label = "Heatmap with performance measures for threshold 0.66 for AMS Youth")
 
 
 # Explain and fairmodels ===============================================================================================
