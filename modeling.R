@@ -17,22 +17,6 @@ set.seed(42)
 # Load other scripts ---------------------------------------------------------------------------------------------------
 source("tasks.R", encoding="utf-8") # for predefined feature sets
 
-# Load test ids
-#write(ids, file = "test_ids.txt")
-test_ids = scan("test_ids.txt")
-
-# Train Test Split
-# Training set for tuning, test set for final evaluation on untouched data
-train_test_ratio = .8
-mushrooms_data_training = dplyr::sample_frac(tbl = mushrooms_data,
-                                             size = train_test_ratio)
-mushrooms_data_test = dplyr::anti_join(x = mushrooms_data,
-                                       y = mushrooms_data_training,
-                                       by = "ID")
-
-mushrooms_data_training = dplyr::select(mushrooms_data_training, -ID)
-mushrooms_data_ = dplyr::select(mushrooms_data_test, -ID) # Wieso wurde der gemacht?
-
 # Set-up modeling ======================================================================================================
 # Tasks ----------------------------------------------------------------------------------------------------------------
 tasks = c(task_ams_youth
@@ -105,11 +89,12 @@ measures_tuning = msr("classif.auc")
 #as.data.table(mlr_resamplings)
 # 5 fold cross validation for inner loop
 resampling_inner_3CV = rsmp("cv", folds = 3L)
-# Holdout for outer loop
-resampling_outer_ho = rsmps("holdout", ratio = 0.8)
 
-rsmp("custom")
+#resampling_outer_ho = rsmps("holdout", ratio = 0.8)
+#rsmp("custom")
 
+# Holdout with prespecified holdout row_roles for test and train
+insample = rsmp("insample")
 
 
 #rr = resample(task_AMS, learner, resampling, store_models = TRUE)
@@ -173,7 +158,7 @@ tuner_ranger = AutoTuner$new(
 
 
 # Penalized logistic regression glmnet _________________________________________________________________________________
-learner_glmnet = lrn("classif.glmnet", predict_type = "prob", predict_sets = "test")
+learner_glmnet = lrn("classif.glmnet", predict_type = "prob", predict_sets = "holdout")
 fencoder = po("encode", method = "treatment", affect_columns = selector_type("factor"))
 ord_to_int = po("colapply", applicator = as.integer, affect_columns = selector_type("ordered"))
 graph = fencoder %>>% ord_to_int %>>% learner_glmnet
@@ -182,7 +167,7 @@ graph_glmnet = as_learner(graph)
 
 # xgboost ______________________________________________________________________________________________________________
 # Define learner:
-learner_xgboost = lrn("classif.xgboost", predict_type = "prob", predict_sets = "test")
+learner_xgboost = lrn("classif.xgboost", predict_type = "prob", predict_sets = "holdout")
 graph = fencoder %>>% ord_to_int %>>% learner_xgboost
 
 graph_xgboost = as_learner(graph)
@@ -216,7 +201,7 @@ tuner_ranger = AutoTuner$new(
 
 
 # SVM __________________________________________________________________________________________________________________
-learner_svm = lrn("classif.svm", predict_type = "prob", predict_sets = "test")
+learner_svm = lrn("classif.svm", predict_type = "prob", predict_sets = "holdout")
 graph = fencoder %>>% ord_to_int %>>% learner_svm
 
 graph_svm = as_learner(graph)
@@ -285,12 +270,12 @@ learner_tree = lrn("classif.rpart",
 #                    ), 
 #                 predict_type = "prob", predict_sets = "test") #  "train", "holdout"
 
-learners = c(lrn("classif.featureless", id = "Only M Group", predict_type = "prob", predict_sets = "test")
-              , lrn("classif.log_reg", id = "Logistic Regression", predict_type = "prob", predict_sets = "test")
-              , lrn("classif.log_reg", id = "Logistic Regression doc", predict_type = "prob", predict_sets = "test")
-              , lrn("classif.rpart", id = "Decision Tree", predict_type = "prob", predict_sets = "test")
-              , lrn("classif.ranger", id = "Random Forest", predict_type = "prob", predict_sets = "test")
-              , lrn("classif.kknn", id = "KKNN", predict_type = "prob", predict_sets = "test")
+learners = c(lrn("classif.featureless", id = "Featureless", predict_type = "prob", predict_sets = "holdout")
+              , lrn("classif.log_reg", id = "Logistic Regression", predict_type = "prob", predict_sets = "holdout")
+              , lrn("classif.log_reg", id = "Logistic Regression doc", predict_type = "prob", predict_sets = "holdout")
+              , lrn("classif.rpart", id = "Decision Tree", predict_type = "prob", predict_sets = "holdout")
+              , lrn("classif.ranger", id = "Random Forest", predict_type = "prob", predict_sets = "holdout")
+              , lrn("classif.kknn", id = "KKNN", predict_type = "prob", predict_sets = "holdout")
               )
 
 #lapply(learners, function(i) i$feature_types)
@@ -303,7 +288,7 @@ learners = c(lrn("classif.featureless", id = "Only M Group", predict_type = "pro
 set.seed(42)
 design = benchmark_grid(tasks = tasks 
                         , learners = c(learners, graph_glmnet, graph_xgboost, graph_svm)
-                        , resamplings = resampling_outer_ho
+                        , resamplings = insample
                         )
 
 
