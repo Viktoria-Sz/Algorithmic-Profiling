@@ -17,6 +17,22 @@ set.seed(42)
 # Load other scripts ---------------------------------------------------------------------------------------------------
 source("tasks.R", encoding="utf-8") # for predefined feature sets
 
+# Load test ids
+#write(ids, file = "test_ids.txt")
+test_ids = scan("test_ids.txt")
+
+# Train Test Split
+# Training set for tuning, test set for final evaluation on untouched data
+train_test_ratio = .8
+mushrooms_data_training = dplyr::sample_frac(tbl = mushrooms_data,
+                                             size = train_test_ratio)
+mushrooms_data_test = dplyr::anti_join(x = mushrooms_data,
+                                       y = mushrooms_data_training,
+                                       by = "ID")
+
+mushrooms_data_training = dplyr::select(mushrooms_data_training, -ID)
+mushrooms_data_ = dplyr::select(mushrooms_data_test, -ID) # Wieso wurde der gemacht?
+
 # Set-up modeling ======================================================================================================
 # Tasks ----------------------------------------------------------------------------------------------------------------
 tasks = c(task_ams_youth
@@ -36,6 +52,9 @@ performance_measures = msrs(c("classif.acc"
                   , "classif.fbeta"
                   ))
 
+# performance_measures_ = c(msr("classif.auc", id = "AUC"), 
+#                           msr("classif.acc", id = "accuracy"))
+
 # Fairness Measure
 fairness_measures_absdiff = msrs(c("fairness.acc"
                            , "fairness.tpr"
@@ -54,6 +73,8 @@ fairness_measures_diff = c(msr("fairness.acc", operation = groupdiff_diff)
                       )
 
 group_measures = groupwise_metrics(msr("classif.acc"), task_ams_youth)
+
+measures_tuning = msr("classif.auc")
 
 # fairness.acc: Absolute differences in accuracy across groups
 # fairness.fpr: Absolute differences in false positive rates across groups
@@ -87,9 +108,70 @@ resampling_inner_3CV = rsmp("cv", folds = 3L)
 # Holdout for outer loop
 resampling_outer_ho = rsmps("holdout", ratio = 0.8)
 
+rsmp("custom")
+
+
+
 #rr = resample(task_AMS, learner, resampling, store_models = TRUE)
 
 # Learners -------------------------------------------------------------------------------------------------------------
+# Autotune knn _________________________________________________________________________________________________________
+# Define learner:
+learner_knn = lrn("classif.kknn", predict_type = "prob", predict_sets = "test")
+
+# tune k in knn:
+learner_knn$param_set
+
+# tune the chosen hyperparameters with these boundaries:
+param_k = ps(k = p_int(lower = 1, upper = 50))
+
+# Choose optimization algorithm:
+# no need to randomize, try to go every step
+tuner_grid_search_knn = tnr("grid_search", resolution = 50)
+
+# Set the budget (when to terminate):
+# test every candidate
+terminator_knn = trm("evals", n_evals = 50)
+
+# Set up autotuner instance with the predefined setups
+tuner_knn = AutoTuner$new(
+  learner = learner_knn,
+  resampling = resampling_inner_3CV,
+  measure = measures_tuning, 
+  search_space = param_k, 
+  terminator = terminator_knn,
+  tuner = tuner_grid_search_knn
+)
+
+# Autotune Random Forest _______________________________________________________________________________________________
+# Define learner:
+learner_ranger = lrn("classif.ranger", predict_type = "prob", predict_sets = "test") #, importance = "impurity")
+
+# tune mtry for the random forest:
+learner_ranger$param_set
+
+# we will try all configurations: 1 to 21 features.
+param_mtry = ps(mtry = p_int(lower = 1, upper = 30)) 
+
+# Choose optimization algorithm:
+# no need to etra randomize, try to go every step
+tuner_grid_search_ranger = tnr("grid_search", resolution = 30)  
+
+# Set the budget (when to terminate):
+terminator_mtry = trm("evals", n_evals = 30)
+
+# Set up autotuner instance with the predefined setups
+tuner_ranger = AutoTuner$new(
+  learner = learner_ranger,
+  resampling = resampling_inner_3CV,
+  measure = measures_tuning, 
+  search_space = param_mtry, 
+  terminator = terminator_mtry,
+  tuner = tuner_grid_search_ranger
+)
+
+
+
 # Penalized logistic regression glmnet _________________________________________________________________________________
 learner_glmnet = lrn("classif.glmnet", predict_type = "prob", predict_sets = "test")
 fencoder = po("encode", method = "treatment", affect_columns = selector_type("factor"))
@@ -99,11 +181,39 @@ graph = fencoder %>>% ord_to_int %>>% learner_glmnet
 graph_glmnet = as_learner(graph)
 
 # xgboost ______________________________________________________________________________________________________________
-lrn("classif.rpart")$param_set
+# Define learner:
 learner_xgboost = lrn("classif.xgboost", predict_type = "prob", predict_sets = "test")
 graph = fencoder %>>% ord_to_int %>>% learner_xgboost
 
 graph_xgboost = as_learner(graph)
+
+# tune nrounds, eta and booster:
+learner_xgboost$param_set
+
+# Hyperparameter subset of XGBoost
+param_xgboost = ps(
+  nrounds = p_int(lower = 1, upper = 16, tags = "budget"),
+  eta = p_dbl(lower = 0, upper = 1),
+  booster = p_fct(levels = c("gbtree", "gblinear", "dart"))
+)
+
+# Choose optimization algorithm:
+# no need to etra randomize, try to go every step
+tuner_grid_search_ranger = tnr("grid_search", resolution = 30)  
+
+# Set the budget (when to terminate):
+terminator_xgboost = trm("evals", n_evals = 30)
+
+# Set up autotuner instance with the predefined setups
+tuner_ranger = AutoTuner$new(
+  learner = learner_ranger,
+  resampling = resampling_inner_3CV,
+  measure = measures_tuning, 
+  search_space = param_xgboost, 
+  terminator = terminator_xgboost,
+  tuner = tuner_grid_search_ranger
+)
+
 
 # SVM __________________________________________________________________________________________________________________
 learner_svm = lrn("classif.svm", predict_type = "prob", predict_sets = "test")
@@ -111,18 +221,42 @@ graph = fencoder %>>% ord_to_int %>>% learner_svm
 
 graph_svm = as_learner(graph)
 
+# tune mtry for the random forest:
+learner_ranger$param_set
+
 search_space = ps(cost = p_dbl(0.1, 10), kernel = p_fct(c("polynomial", "radial")))
-print(search_space)
 # see searchspace grid
 # rbindlist(generate_design_grid(search_space, 3)$transpose())
 
 # The Support Vector Machine (SVM), for example, has the degree parameter that is only valid when kernel is "polynomial"
-search_space = ps(
-  cost = p_dbl(-1, 1, trafo = function(x) 10^x),
-  kernel = p_fct(c("polynomial", "radial")),
-  degree = p_int(1, 3, depends = kernel == "polynomial")
+# search_space = ps(
+#   cost = p_dbl(-1, 1, trafo = function(x) 10^x),
+#   kernel = p_fct(c("polynomial", "radial")),
+#   degree = p_int(1, 3, depends = kernel == "polynomial")
+# )
+# rbindlist(generate_design_grid(search_space, 3)$transpose(), fill = TRUE)
+
+
+# we will try all configurations: 1 to 21 features.
+param_mtry = ps(mtry = p_int(lower = 1, upper = 30)) 
+
+# Choose optimization algorithm:
+# no need to etra randomize, try to go every step
+tuner_grid_search_ranger = tnr("grid_search", resolution = 30)  
+
+# Set the budget (when to terminate):
+terminator_mtry = trm("evals", n_evals = 30)
+
+# Set up autotuner instance with the predefined setups
+tuner_ranger = AutoTuner$new(
+  learner = learner_ranger,
+  resampling = resampling_inner_3CV,
+  measure = measures_tuning, 
+  search_space = param_mtry, 
+  terminator = terminator_mtry,
+  tuner = tuner_grid_search_ranger
 )
-rbindlist(generate_design_grid(search_space, 3)$transpose(), fill = TRUE)
+
 
 # Regression Tree ______________________________________________________________________________________________________
 # The complexity hyperparameter cp that controls when the learner considers introducing another branch.
@@ -133,36 +267,44 @@ search_space = ps(
   minsplit = p_int(lower = 1, upper = 10)
 )
 
-# All __________________________________________________________________________________________________________________
-lrn("classif.rpart")$param_set
-lrn("classif.ranger")$param_set
-lrn("classif.kknn")$param_set
+learner_tree = lrn("classif.rpart",
+                   predict_type = "prob",
+                   "cp" = 0.001) 
+# set cp super low to enforce new splits so we get FPR < 1%
 
-learners = lrns(c( "classif.featureless" # method: mode
-                   ,"classif.log_reg" # logistic regression
-                   #,"classif.glmnet" # penalized logistic regression
-                   ,"classif.rpart" # Decision tree
-                   ,"classif.ranger" # Random Forest
-                   #,"classif.xgboost"
-                   , "classif.kknn"
-                   #, "classif.svm"
-                   ), 
-                predict_type = "prob", predict_sets = "test") #  "train", "holdout"
+# All __________________________________________________________________________________________________________________
+# learners = lrns(c( "classif.featureless" # method: mode
+#                    ,"classif.log_reg" # logistic regression
+#                    ,"classif.log_reg" # logistic regression
+#                    #,"classif.glmnet" # penalized logistic regression
+#                    ,"classif.rpart" # Decision tree
+#                    ,"classif.ranger" # Random Forest
+#                    #,"classif.xgboost"
+#                    , "classif.kknn"
+#                    #, "classif.svm"
+#                    ), 
+#                 predict_type = "prob", predict_sets = "test") #  "train", "holdout"
+
+learners = c(lrn("classif.featureless", id = "Only M Group", predict_type = "prob", predict_sets = "test")
+              , lrn("classif.log_reg", id = "Logistic Regression", predict_type = "prob", predict_sets = "test")
+              , lrn("classif.log_reg", id = "Logistic Regression doc", predict_type = "prob", predict_sets = "test")
+              , lrn("classif.rpart", id = "Decision Tree", predict_type = "prob", predict_sets = "test")
+              , lrn("classif.ranger", id = "Random Forest", predict_type = "prob", predict_sets = "test")
+              , lrn("classif.kknn", id = "KKNN", predict_type = "prob", predict_sets = "test")
+              )
 
 #lapply(learners, function(i) i$feature_types)
 
-# Setting Parameter for Autotune -----------------------------------------------
-
-measures_tuning = msr("classif.auc")
 
 # Benchmark design -----------------------------------------------------------------------------------------------------
 # Wenn ich das neu aufrufe kommen andere Ergebnisse raus...
 # Holdout sample ist immer neu
 # Jetzt mit set.seed direkt davor geht es, aber weiter beobachten
 set.seed(42)
-design = benchmark_grid(tasks = tasks, 
-                        learners = c(learners, graph_glmnet, graph_xgboost, graph_svm),
-                        resamplings = resampling_outer_ho)
+design = benchmark_grid(tasks = tasks 
+                        , learners = c(learners, graph_glmnet, graph_xgboost, graph_svm)
+                        , resamplings = resampling_outer_ho
+                        )
 
 
 # Training =============================================================================================================
@@ -214,6 +356,7 @@ autoplot(bmr_green, type = "prc")
 
 # Set threshold to 66% as in the ams paper
 tab_bmr <- as.data.table(bmr)
+
 lapply(tab_bmr$prediction, function(i) i$set_threshold(0.66))
 
 
@@ -240,6 +383,44 @@ names(scores_list) <- task_learner_ids
 # Predcitions for all models
 prediction_list = tab_bmr$prediction
 names(prediction_list) <- task_learner_ids
+
+
+# Dataframe variant 1 --------------------------------------------------------------------------------------------------
+df1 = data.frame(task = unlist(task_ids), model = unlist(learner_ids))
+ids = prediction_list[[1]]$row_ids
+df1 = expand(df1, task, model, ids)
+
+
+
+prediction_list[[1]]$truth
+
+# Dataframe variant 2 --------------------------------------------------------------------------------------------------
+df2 = data.frame(task = unlist(task_ids))
+ids = prediction_list[[1]]$row_ids
+df2 = expand(df2, task, ids)
+
+truth = data.frame(ids = prediction_list[[2]]$row_ids, truth = prediction_list[[2]]$truth)
+df2 = full_join(df2, truth, by = "ids")
+df2$truth_01 <- ifelse(df2$truth == '>=90 Days', 1, 0)
+
+learner_ids
+prediction_list[[2]]$prob[,1]
+
+probs = lapply(prediction_list, function(i) i$prob[,1])
+probs = as.data.frame(do.call(cbind, probs))
+#names(probs) = learner_ids
+
+# Dataframe variante 3 -------------------------------------------------------------------------------------------------
+df3 = data.frame(ids = prediction_list[[1]]$row_ids, truth = prediction_list[[2]]$truth)
+df3$truth_01 <- ifelse(df3$truth == '>=90 Days', 1, 0)
+
+prediction_list
+
+probs = lapply(prediction_list, function(i) i$prob[,1])
+lapply(probs, length)
+probs = as.data.frame(do.call(cbind, probs))
+
+cbind(df3, probs)
 
 # Visualizations =======================================================================================================
 fairness_prediction_density(prediction_list[[2]], task_ams_youth)
@@ -662,3 +843,37 @@ data_test = dplyr::anti_join(x = data, y = data_training, by = "case")
 
 ggplot(data_test, aes(x = EMPLOYMENTDAYS)) +
   geom_bar()
+
+
+# try predifined coeficients -------------------------------------------------------------------------------------------
+OR_coefs_youth <- c(-0.13, # Intercept
+                    0.13, # altersgruppe 20-24
+                    0.00, # altersgruppe 25-28 rausnehmen?
+                    0.01, # BUSINESSCASEFREQ1
+                    -0.02, # BUSINESSCASEFREQ2
+                    -0.06, # BUSINESSCASEFREQ3
+                    -0.46, # Childcare_ja
+                    0.48, # EducationL
+                    0.40, # Education M
+                    0.09, # Gender female
+                    -0.36, # Impairment strong yes
+                    -0.03, # occupationgroup P
+                    -0.17, # RGS 3
+                    -0.15, # RGS 4
+                    -0.21,# Supportmeasure 1 qual
+                    -0.14# Supportmeasure 1 Bförd
+)
+names(OR_coefs_youth) <- names(tab_bmr$learner[[3]]$model$coefficients)
+tab_bmr$learner[[3]]$model$coefficients <- OR_coefs_youth
+
+
+
+# list stuff -----------------------------------------------------------------------------------------------------------
+unlist(probs, recursive = TRUE)
+
+lapply(probs, tidy)
+do.call(cbind, lapply(probs, tidy))
+
+
+tidyframe = lapply(probs, tidy)
+cbind(tidyframe[1], tidyframe[2])
