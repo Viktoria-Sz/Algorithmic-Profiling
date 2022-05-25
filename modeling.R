@@ -19,7 +19,7 @@ source("tasks.R", encoding="utf-8") # for predefined feature sets
 
 # Set-up modeling ======================================================================================================
 # Tasks ----------------------------------------------------------------------------------------------------------------
-tasks = c(task_ams_youth
+tasks = list(task_ams_youth
           , task_ams
           , task_ams_ext
           , task_green
@@ -48,7 +48,7 @@ fairness_measures_absdiff = msrs(c("fairness.acc"
                            , "fairness.eod"
                            ))
 
-fairness_measures_diff = c(msr("fairness.acc", operation = groupdiff_diff)
+fairness_measures_diff = list(msr("fairness.acc", operation = groupdiff_diff)
                       , msr("fairness.tpr", operation = groupdiff_diff)
                       , msr("fairness.tnr", operation = groupdiff_diff)
                       , msr("fairness.fomr", operation = groupdiff_diff)
@@ -91,10 +91,13 @@ measures_tuning = msr("classif.auc")
 resampling_inner_3CV = rsmp("cv", folds = 3L)
 
 #resampling_outer_ho = rsmps("holdout", ratio = 0.8)
-#rsmp("custom")
+
+
+
+
 
 # Holdout with prespecified holdout row_roles for test and train
-insample = rsmp("insample")
+#insample = rsmp("insample")
 
 
 #rr = resample(task_AMS, learner, resampling, store_models = TRUE)
@@ -158,7 +161,7 @@ tuner_ranger = AutoTuner$new(
 
 
 # Penalized logistic regression glmnet _________________________________________________________________________________
-learner_glmnet = lrn("classif.glmnet", predict_type = "prob", predict_sets = "holdout")
+learner_glmnet = lrn("classif.glmnet", predict_type = "prob", predict_sets = "test")
 fencoder = po("encode", method = "treatment", affect_columns = selector_type("factor"))
 ord_to_int = po("colapply", applicator = as.integer, affect_columns = selector_type("ordered"))
 graph = fencoder %>>% ord_to_int %>>% learner_glmnet
@@ -167,7 +170,7 @@ graph_glmnet = as_learner(graph)
 
 # xgboost ______________________________________________________________________________________________________________
 # Define learner:
-learner_xgboost = lrn("classif.xgboost", predict_type = "prob", predict_sets = "holdout")
+learner_xgboost = lrn("classif.xgboost", predict_type = "prob", predict_sets = "test")
 graph = fencoder %>>% ord_to_int %>>% learner_xgboost
 
 graph_xgboost = as_learner(graph)
@@ -201,7 +204,7 @@ tuner_ranger = AutoTuner$new(
 
 
 # SVM __________________________________________________________________________________________________________________
-learner_svm = lrn("classif.svm", predict_type = "prob", predict_sets = "holdout")
+learner_svm = lrn("classif.svm", predict_type = "prob", predict_sets = "test")
 graph = fencoder %>>% ord_to_int %>>% learner_svm
 
 graph_svm = as_learner(graph)
@@ -268,33 +271,50 @@ learner_tree = lrn("classif.rpart",
 #                    , "classif.kknn"
 #                    #, "classif.svm"
 #                    ), 
-#                 predict_type = "prob", predict_sets = "test") #  "train", "holdout"
+#                 predict_type = "prob", predict_sets = "test") #  "train", "test"
 
-learners = c(lrn("classif.featureless", id = "Featureless", predict_type = "prob", predict_sets = "holdout")
-              , lrn("classif.log_reg", id = "Logistic Regression", predict_type = "prob", predict_sets = "holdout")
-              , lrn("classif.log_reg", id = "Logistic Regression doc", predict_type = "prob", predict_sets = "holdout")
-              , lrn("classif.rpart", id = "Decision Tree", predict_type = "prob", predict_sets = "holdout")
-              , lrn("classif.ranger", id = "Random Forest", predict_type = "prob", predict_sets = "holdout")
-              , lrn("classif.kknn", id = "KKNN", predict_type = "prob", predict_sets = "holdout")
+learners = list(lrn("classif.featureless", id = "Featureless", predict_type = "prob", predict_sets = "test")
+              , lrn("classif.log_reg", id = "Logistic Regression", predict_type = "prob", predict_sets = "test")
+              #, lrn("classif.log_reg", id = "Logistic Regression doc", predict_type = "prob", predict_sets = "test")
+              , lrn("classif.rpart", id = "Decision Tree", predict_type = "prob", predict_sets = "test")
+              , lrn("classif.ranger", id = "Random Forest", predict_type = "prob", predict_sets = "test")
+              , lrn("classif.kknn", id = "KKNN", predict_type = "prob", predict_sets = "test")
               )
 
 #lapply(learners, function(i) i$feature_types)
 
+resampling_costum = rsmp("custom")
+
+for(i in 1:length(tasks)){
+  test_set = list(test_ids)
+  train_set = list(setdiff(tasks[[i]]$row_ids, test_ids))
+  resampling_costum$instantiate(tasks[[i]], train_set, test_set)
+}
 
 # Benchmark design -----------------------------------------------------------------------------------------------------
 # Wenn ich das neu aufrufe kommen andere Ergebnisse raus...
 # Holdout sample ist immer neu
 # Jetzt mit set.seed direkt davor geht es, aber weiter beobachten
 set.seed(42)
-design = benchmark_grid(tasks = tasks 
-                        , learners = c(learners, graph_glmnet, graph_xgboost, graph_svm)
-                        , resamplings = insample
-                        )
+# design = benchmark_grid(tasks = tasks 
+#                         , learners = c(learners, graph_glmnet, graph_xgboost, graph_svm)
+#                         , resamplings = resampling_costum
+#                         )
+
+grid = data.table::CJ(task = tasks, 
+                      learner = c(learners, graph_glmnet, graph_xgboost, graph_svm), 
+                      resampling = list(resampling_costum), sorted = FALSE)
+
+# manual instantiation 
+Map(function(task, resampling) {resampling$instantiate(task, 
+                                                       train_sets = list(setdiff(task$row_ids, test_ids)), 
+                                                       test_sets = list(test_ids))}, 
+    task =  grid$task, resampling =  grid$resampling)
 
 
 # Training =============================================================================================================
 #execute_start_time <- Sys.time()
-bmr = benchmark(design, store_models = TRUE)
+bmr = benchmark(grid, store_models = TRUE)
 #evaluation_time <- Sys.time() - execute_start_time 
 #rm(execute_start_time)
 
@@ -339,7 +359,7 @@ autoplot(bmr_green, type = "prc")
 # The ratio of positives and negatives defines the baseline. What is it?
 
 
-# Set threshold to 66% as in the ams paper
+# Set threshold to 66% as in the ams paper -----------------------------------------------------------------------------
 tab_bmr <- as.data.table(bmr)
 
 lapply(tab_bmr$prediction, function(i) i$set_threshold(0.66))

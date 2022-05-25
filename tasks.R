@@ -32,8 +32,8 @@ task_ams_youth$filter(which(ids))
 
 print(task_ams_youth) # 950 Beobachtungen mit 10 Variablen
 # Set test set holdout rows
-task_ams_youth$set_row_roles(test_ids, roles = "holdout")
-print(task_ams_youth)
+#task_ams_youth$set_row_roles(test_ids, roles = "holdout")
+#print(task_ams_youth)
 
 # check missings in holdout
 ids = complete.cases(task_ams_youth$data(test_ids))
@@ -51,7 +51,7 @@ task_ams$filter(which(ids))
 task_ams$col_roles$pta = "GENDER"
 
 # Set test set holdout rows
-task_ams$set_row_roles(test_ids, roles = "holdout")
+#task_ams$set_row_roles(test_ids, roles = "holdout")
 
 print(task_ams) # 950 Beobachtungen mit 10 Variablen
 
@@ -68,7 +68,7 @@ task_ams_ext$col_roles$pta = "GENDER"
 
 
 # Set test set holdout rows
-task_ams_ext$set_row_roles(test_ids, roles = "holdout")
+#task_ams_ext$set_row_roles(test_ids, roles = "holdout")
 
 print(task_ams_ext) # 1009 Beobachtungen mit 16 Variablen
 unique(task_ams_ext$feature_types$type)
@@ -86,7 +86,7 @@ task_green_big$filter(which(ids))
 task_green_big$col_roles$pta = "GENDER"
 
 # Set test set holdout rows
-task_green_big$set_row_roles(test_ids, roles = "holdout")
+#task_green_big$set_row_roles(test_ids, roles = "holdout")
 
 print(task_green_big) # 1009 Beobachtungen mit 16 Variablen
 unique(task_green_big$feature_types$type)
@@ -114,7 +114,7 @@ task_green$filter(which(ids))
 
 task_green$col_roles$pta = "GENDER"
 # Set test set holdout rows
-task_green$set_row_roles(test_ids, roles = "holdout")
+#task_green$set_row_roles(test_ids, roles = "holdout")
 
 print(task_green) # 743 Beobachtungen mit 30 Variablen
 
@@ -126,8 +126,9 @@ ids = complete.cases(task_green_big$data(test_ids))
 sum(!ids)
 
 # Check test set equality ==============================================================================================
-setequal(task_ams_youth$row_roles$holdout, task_green$row_roles$holdout)
+#setequal(task_ams_youth$row_roles$holdout, task_green$row_roles$holdout)
 
 
 #setequal(task_ams_youth$data(test_ids), task_green_big$data(test_ids))
-#setdiff(task_ams_youth$data(test_ids), task_green_big$data(test_ids))
+setdiff(task_ams_youth$data(test_ids), task_green_big$data(test_ids))
+
