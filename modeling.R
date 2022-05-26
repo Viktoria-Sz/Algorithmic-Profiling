@@ -16,6 +16,8 @@ set.seed(42)
 
 # Load other scripts ---------------------------------------------------------------------------------------------------
 source("tasks.R", encoding="utf-8") # for predefined feature sets
+source("learners.R", encoding="utf-8") # for predefined feature sets
+
 
 # Set-up modeling ======================================================================================================
 # Tasks ----------------------------------------------------------------------------------------------------------------
@@ -58,8 +60,6 @@ fairness_measures_diff = list(msr("fairness.acc", operation = groupdiff_diff)
 
 group_measures = groupwise_metrics(msr("classif.acc"), task_ams_youth)
 
-measures_tuning = msr("classif.auc")
-
 # fairness.acc: Absolute differences in accuracy across groups
 # fairness.fpr: Absolute differences in false positive rates across groups
 # -> In my case the FPR represents the unemployed who falsely got into the H group
@@ -87,180 +87,17 @@ measures_tuning = msr("classif.auc")
 
 # Resampling strategy --------------------------------------------------------------------------------------------------
 #as.data.table(mlr_resamplings)
-# 5 fold cross validation for inner loop
-resampling_inner_3CV = rsmp("cv", folds = 3L)
 
 #resampling_outer_ho = rsmps("holdout", ratio = 0.8)
 
-
-
+# Costum resampling
+resampling_costum = rsmp("custom")
 
 
 # Holdout with prespecified holdout row_roles for test and train
 #insample = rsmp("insample")
 
-
-#rr = resample(task_AMS, learner, resampling, store_models = TRUE)
-
 # Learners -------------------------------------------------------------------------------------------------------------
-# Autotune knn _________________________________________________________________________________________________________
-# Define learner:
-learner_knn = lrn("classif.kknn", predict_type = "prob", predict_sets = "test")
-
-# tune k in knn:
-learner_knn$param_set
-
-# tune the chosen hyperparameters with these boundaries:
-param_k = ps(k = p_int(lower = 1, upper = 50))
-
-# Choose optimization algorithm:
-# no need to randomize, try to go every step
-tuner_grid_search_knn = tnr("grid_search", resolution = 50)
-
-# Set the budget (when to terminate):
-# test every candidate
-terminator_knn = trm("evals", n_evals = 50)
-
-# Set up autotuner instance with the predefined setups
-tuner_knn = AutoTuner$new(
-  learner = learner_knn,
-  resampling = resampling_inner_3CV,
-  measure = measures_tuning, 
-  search_space = param_k, 
-  terminator = terminator_knn,
-  tuner = tuner_grid_search_knn
-)
-
-# Autotune Random Forest _______________________________________________________________________________________________
-# Define learner:
-learner_ranger = lrn("classif.ranger", predict_type = "prob", predict_sets = "test") #, importance = "impurity")
-
-# tune mtry for the random forest:
-learner_ranger$param_set
-
-# we will try all configurations: 1 to 21 features.
-param_mtry = ps(mtry = p_int(lower = 1, upper = 30)) 
-
-# Choose optimization algorithm:
-# no need to etra randomize, try to go every step
-tuner_grid_search_ranger = tnr("grid_search", resolution = 30)  
-
-# Set the budget (when to terminate):
-terminator_mtry = trm("evals", n_evals = 30)
-
-# Set up autotuner instance with the predefined setups
-tuner_ranger = AutoTuner$new(
-  learner = learner_ranger,
-  resampling = resampling_inner_3CV,
-  measure = measures_tuning, 
-  search_space = param_mtry, 
-  terminator = terminator_mtry,
-  tuner = tuner_grid_search_ranger
-)
-
-
-
-# Penalized logistic regression glmnet _________________________________________________________________________________
-learner_glmnet = lrn("classif.glmnet", predict_type = "prob", predict_sets = "test")
-fencoder = po("encode", method = "treatment", affect_columns = selector_type("factor"))
-ord_to_int = po("colapply", applicator = as.integer, affect_columns = selector_type("ordered"))
-graph = fencoder %>>% ord_to_int %>>% learner_glmnet
-
-graph_glmnet = as_learner(graph)
-
-# xgboost ______________________________________________________________________________________________________________
-# Define learner:
-learner_xgboost = lrn("classif.xgboost", predict_type = "prob", predict_sets = "test")
-graph = fencoder %>>% ord_to_int %>>% learner_xgboost
-
-graph_xgboost = as_learner(graph)
-
-# tune nrounds, eta and booster:
-learner_xgboost$param_set
-
-# Hyperparameter subset of XGBoost
-param_xgboost = ps(
-  nrounds = p_int(lower = 1, upper = 16, tags = "budget"),
-  eta = p_dbl(lower = 0, upper = 1),
-  booster = p_fct(levels = c("gbtree", "gblinear", "dart"))
-)
-
-# Choose optimization algorithm:
-# no need to etra randomize, try to go every step
-tuner_grid_search_ranger = tnr("grid_search", resolution = 30)  
-
-# Set the budget (when to terminate):
-terminator_xgboost = trm("evals", n_evals = 30)
-
-# Set up autotuner instance with the predefined setups
-tuner_ranger = AutoTuner$new(
-  learner = learner_ranger,
-  resampling = resampling_inner_3CV,
-  measure = measures_tuning, 
-  search_space = param_xgboost, 
-  terminator = terminator_xgboost,
-  tuner = tuner_grid_search_ranger
-)
-
-
-# SVM __________________________________________________________________________________________________________________
-learner_svm = lrn("classif.svm", predict_type = "prob", predict_sets = "test")
-graph = fencoder %>>% ord_to_int %>>% learner_svm
-
-graph_svm = as_learner(graph)
-
-# tune mtry for the random forest:
-learner_ranger$param_set
-
-search_space = ps(cost = p_dbl(0.1, 10), kernel = p_fct(c("polynomial", "radial")))
-# see searchspace grid
-# rbindlist(generate_design_grid(search_space, 3)$transpose())
-
-# The Support Vector Machine (SVM), for example, has the degree parameter that is only valid when kernel is "polynomial"
-# search_space = ps(
-#   cost = p_dbl(-1, 1, trafo = function(x) 10^x),
-#   kernel = p_fct(c("polynomial", "radial")),
-#   degree = p_int(1, 3, depends = kernel == "polynomial")
-# )
-# rbindlist(generate_design_grid(search_space, 3)$transpose(), fill = TRUE)
-
-
-# we will try all configurations: 1 to 21 features.
-param_mtry = ps(mtry = p_int(lower = 1, upper = 30)) 
-
-# Choose optimization algorithm:
-# no need to etra randomize, try to go every step
-tuner_grid_search_ranger = tnr("grid_search", resolution = 30)  
-
-# Set the budget (when to terminate):
-terminator_mtry = trm("evals", n_evals = 30)
-
-# Set up autotuner instance with the predefined setups
-tuner_ranger = AutoTuner$new(
-  learner = learner_ranger,
-  resampling = resampling_inner_3CV,
-  measure = measures_tuning, 
-  search_space = param_mtry, 
-  terminator = terminator_mtry,
-  tuner = tuner_grid_search_ranger
-)
-
-
-# Regression Tree ______________________________________________________________________________________________________
-# The complexity hyperparameter cp that controls when the learner considers introducing another branch.
-# The minsplit hyperparameter that controls how many observations must be present in a leaf for another split to be attempted.
-
-search_space = ps(
-  cp = p_dbl(lower = 0.001, upper = 0.1),
-  minsplit = p_int(lower = 1, upper = 10)
-)
-
-learner_tree = lrn("classif.rpart",
-                   predict_type = "prob",
-                   "cp" = 0.001) 
-# set cp super low to enforce new splits so we get FPR < 1%
-
-# All __________________________________________________________________________________________________________________
 # learners = lrns(c( "classif.featureless" # method: mode
 #                    ,"classif.log_reg" # logistic regression
 #                    ,"classif.log_reg" # logistic regression
@@ -283,13 +120,6 @@ learners = list(lrn("classif.featureless", id = "Featureless", predict_type = "p
 
 #lapply(learners, function(i) i$feature_types)
 
-resampling_costum = rsmp("custom")
-
-for(i in 1:length(tasks)){
-  test_set = list(test_ids)
-  train_set = list(setdiff(tasks[[i]]$row_ids, test_ids))
-  resampling_costum$instantiate(tasks[[i]], train_set, test_set)
-}
 
 # Benchmark design -----------------------------------------------------------------------------------------------------
 # Wenn ich das neu aufrufe kommen andere Ergebnisse raus...
@@ -306,9 +136,8 @@ grid = data.table::CJ(task = tasks,
                       resampling = list(resampling_costum), sorted = FALSE)
 
 # manual instantiation 
-Map(function(task, resampling) {resampling$instantiate(task, 
-                                                       train_sets = list(setdiff(task$row_ids, test_ids)), 
-                                                       test_sets = list(test_ids))}, 
+Map(function(task, resampling) 
+  {resampling$instantiate(task, train_sets = list(setdiff(task$row_ids, test_ids)), test_sets = list(test_ids))}, 
     task =  grid$task, resampling =  grid$resampling)
 
 
@@ -336,6 +165,8 @@ bmr$score(c(performance_measures, fairness_measures_diff))
 # fairness measures: male - female -> positiv male ist größer, negativ female ist größer
 bmr$score(group_measures)
 
+
+# ROC and PRC Curves ---------------------------------------------------------------------------------------------------
 autoplot(bmr, type = "boxplot", measure = msr("classif.auc")) +
   theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
 
@@ -389,8 +220,8 @@ names(scores_list) <- task_learner_ids
 prediction_list = tab_bmr$prediction
 names(prediction_list) <- task_learner_ids
 
-
-# Dataframe variant 1 --------------------------------------------------------------------------------------------------
+# Dataframes with predictions ------------------------------------------------------------------------------------------
+# Dataframe variant 1 __________________________________________________________________________________________________
 df1 = data.frame(task = unlist(task_ids), model = unlist(learner_ids))
 ids = prediction_list[[1]]$row_ids
 df1 = expand(df1, task, model, ids)
@@ -399,7 +230,7 @@ df1 = expand(df1, task, model, ids)
 
 prediction_list[[1]]$truth
 
-# Dataframe variant 2 --------------------------------------------------------------------------------------------------
+# Dataframe variant 2 __________________________________________________________________________________________________
 df2 = data.frame(task = unlist(task_ids))
 ids = prediction_list[[1]]$row_ids
 df2 = expand(df2, task, ids)
@@ -415,7 +246,7 @@ probs = lapply(prediction_list, function(i) i$prob[,1])
 probs = as.data.frame(do.call(cbind, probs))
 #names(probs) = learner_ids
 
-# Dataframe variante 3 -------------------------------------------------------------------------------------------------
+# Dataframe variante 3 __________________________________________________________________________________________________
 df3 = data.frame(ids = prediction_list[[1]]$row_ids, truth = prediction_list[[2]]$truth)
 df3$truth_01 <- ifelse(df3$truth == '>=90 Days', 1, 0)
 
@@ -425,7 +256,7 @@ probs = lapply(prediction_list, function(i) i$prob[,1])
 lapply(probs, length)
 probs = as.data.frame(do.call(cbind, probs))
 
-cbind(df3, probs)
+df3 = cbind(df3, probs)
 
 # Visualizations =======================================================================================================
 fairness_prediction_density(prediction_list[[2]], task_ams_youth)
@@ -451,7 +282,7 @@ heatmap <- function(df, var_y, var_x, fill) {
 }
 
 
-# Heatmap for performance metrics --------------------------------------------------------------------------------------
+# Heatmap for performance metrics ______________________________________________________________________________________
 scores_list[[2]][1:4]
 names(scores_list)[2]
 
@@ -473,7 +304,7 @@ heatmap(table_performance[1:32,], model, measure, score) +
   ggtitle(label = "Heatmap with performance measures for threshold 0.66 for AMS Youth")
 
 
-# Heatmap for fairness metrics -----------------------------------------------------------------------------------------
+# Heatmap for fairness metrics _________________________________________________________________________________________
 scores_list[[2]][5:7]
 names(scores_list)[2]
 
@@ -645,7 +476,7 @@ ac <- all_cutoffs(fobject)
 plot(ac)
 
 
-
+########################################################################################################################
 # RESTE ################################################################################################################
 
 # Benchmark threshold heatmaps zeug ------------------------------------------------------------------------------------
@@ -819,8 +650,8 @@ ggplot(data = feature_scores, aes(x = reorder(feature, -score), y = score)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   scale_y_continuous(breaks = pretty(1:500, 10))
 
-# Predictions ==================================================================
-# Data frame with all predictions?
+# Predictions ==========================================================================================================
+# Data frame with all predictions? -------------------------------------------------------------------------------------
 green_rpart = bmr$aggregate()[learner_id == "classif.rpart" & task_id == "green train", resample_result][[1]]
 pred_green_rpart <- green_rpart$predictions()[[1]]
 pred_green_rpart$set_threshold(0.66)
@@ -882,3 +713,10 @@ do.call(cbind, lapply(probs, tidy))
 
 tidyframe = lapply(probs, tidy)
 cbind(tidyframe[1], tidyframe[2])
+
+# Costum resampling ----------------------------------------------------------------------------------------------------
+for(i in 1:length(tasks)){
+  test_set = list(test_ids)
+  train_set = list(setdiff(tasks[[i]]$row_ids, test_ids))
+  resampling_costum$instantiate(tasks[[i]], train_set, test_set)
+}
