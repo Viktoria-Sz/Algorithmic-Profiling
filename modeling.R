@@ -148,7 +148,7 @@ bmr = benchmark(grid, store_models = TRUE)
 #rm(execute_start_time)
 
 bmr_ams_youth <- bmr$clone(deep = TRUE)$filter(task_id = "AMS youth")
-bmr_ams <- bmr$clone(deep = TRUE)$filter(task_id = "AMS")
+bmr_ams <- bmr$clone(deep = TRUE)$filter(task_id = "AMS full")
 bmr_ams_ext <- bmr$clone(deep = TRUE)$filter(task_id = "AMS extended")
 bmr_green <- bmr$clone(deep = TRUE)$filter(task_id = "green")
 
@@ -221,39 +221,54 @@ prediction_list = tab_bmr$prediction
 names(prediction_list) <- task_learner_ids
 
 # Dataframes with predictions ------------------------------------------------------------------------------------------
-# Dataframe variant 1 __________________________________________________________________________________________________
-df1 = data.frame(task = unlist(task_ids), model = unlist(learner_ids))
-ids = prediction_list[[1]]$row_ids
-df1 = expand(df1, task, model, ids)
-
-
-
-prediction_list[[1]]$truth
-
 # Dataframe variant 2 __________________________________________________________________________________________________
 df2 = data.frame(task = unlist(task_ids))
-ids = prediction_list[[1]]$row_ids
-df2 = expand(df2, task, ids)
+df2 = expand(df2, task, test_ids) # sollte tasks Anzahl mal test rows sein
 
-truth = data.frame(ids = prediction_list[[2]]$row_ids, truth = prediction_list[[2]]$truth)
-df2 = full_join(df2, truth, by = "ids")
+truth = data.frame(test_ids = test_ids, truth = prediction_list[[2]]$truth)
+df2 = full_join(df2, truth, by = "test_ids")
 df2$truth_01 <- ifelse(df2$truth == '>=90 Days', 1, 0)
-
-learner_ids
-prediction_list[[2]]$prob[,1]
 
 probs = lapply(prediction_list, function(i) i$prob[,1])
 probs = as.data.frame(do.call(cbind, probs))
-#names(probs) = learner_ids
+
+df_list = list()
+for(i in unique(unlist(task_ids))){
+  probs_task = probs[str_subset(names(probs), i)]
+  names(probs_task) = unique(unlist(learner_ids))
+  df_list = append(df_list, list(probs_task))
+}
+names(df_list) = unique(unlist(task_ids))
+
+for(i in 1:length(unique(unlist(task_ids)))){
+  df_list[[i]] = mutate(df_list[[i]], task = unique(unlist(task_ids))[i], test_ids = test_ids)
+}
+probs_df = bind_rows(df_list)
+
+df2 = full_join(df2, probs_df, by = c("task","test_ids"))
+
+# Dataframe variant 1 __________________________________________________________________________________________________
+df1 = data.frame(task = unlist(task_ids), model = unlist(learner_ids))
+df1 = expand(df1, task, model, test_ids) # sollte tasks, model Anzahl mal test rows sein
+
+truth = data.frame(test_ids = test_ids, truth = prediction_list[[2]]$truth)
+df1 = full_join(df1, truth, by = "test_ids")
+df1$truth_01 <- ifelse(df1$truth == '>=90 Days', 1, 0)
+
+#sapply(df_list, function(i) pivot_longer(i, unique(unlist(learner_ids)), names_to = "model", values_to = "probabilities"))
+
+df1_probs = pivot_longer(df_list[[1]], unique(unlist(learner_ids)), names_to = "model", values_to = "probabilities")
+for(i in 2:length(df_list)){
+  df1_other = pivot_longer(df_list[[i]], unique(unlist(learner_ids)), names_to = "model", values_to = "probabilities")
+  df1_probs = rbind(df1_probs, df1_other)
+}
+df1 = full_join(df1, df1_probs, by = c("task", "model", "test_ids"))
 
 # Dataframe variante 3 __________________________________________________________________________________________________
 df3 = data.frame(ids = prediction_list[[1]]$row_ids, truth = prediction_list[[2]]$truth)
 df3$truth_01 <- ifelse(df3$truth == '>=90 Days', 1, 0)
 
-prediction_list
-
 probs = lapply(prediction_list, function(i) i$prob[,1])
-lapply(probs, length)
 probs = as.data.frame(do.call(cbind, probs))
 
 df3 = cbind(df3, probs)
