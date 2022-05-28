@@ -18,6 +18,10 @@ set.seed(42)
 source("tasks.R", encoding="utf-8") # for predefined feature sets
 source("learners.R", encoding="utf-8") # for predefined feature sets
 
+data_test = data[test_ids,]
+#setequal(data_test$EMPLOYMENTDAYS, df3$truth)
+data_test$test_ids = test_ids
+
 
 # Set-up modeling ======================================================================================================
 # Tasks ----------------------------------------------------------------------------------------------------------------
@@ -202,6 +206,35 @@ tab_bmr$task[[2]]$id
 tab_bmr$task[[2]]$col_roles$pta
 tab_bmr$learner[[2]]$id
 
+# Predict AMS doc ------------------------------------------------------------------------------------------------------
+# AMS full _____________________________________________________________________________________________________________
+f_ams <- as.formula(paste("EMPLOYMENTDAYS", paste(ams[-1], collapse = "+"), sep = "~"))
+model_ams_OR <- glm(f_ams, family = "binomial", data = data)
+summary(model_ams_OR)
+OR_coefs <- c(0.48, -0.05, 0.0, 0.0, -0.01, 0.04, 0.10, 0.03, -0.08, # RGS-Typ 2: -0.10, 
+              -0.16, -0.10, -0.33, 0.07, -0.31, 0.20, 0.36, 0.63, -0.21, -0.19, -0.03)
+names(OR_coefs) <- names(model_ams_OR$coefficients)
+model_ams_OR$coefficients <- OR_coefs
+
+# Predictions 
+data_test$ams_full_OR <- predict(model_ams_OR, data_test, type="response")
+
+
+# AMS youth ____________________________________________________________________________________________________________
+f_ams_youth <- as.formula(paste("EMPLOYMENTDAYS", paste(ams_youth[-1], collapse = "+"), sep = "~"))
+model_ams_OR_youth <- glm(f_ams_youth, family = "binomial", data = data)
+summary(model_ams_OR_youth)
+OR_coefs_youth <- c(-0.13, 0.09, 0.13, 0.00 # Altersgruppe 25-28, sollte ich wahrscheinilch noch rausnehemn
+                    ,0.48, 0.40, -0.46, -0.17, -0.15, 
+                    -0.36, -0.03, 0.01, -0.02, -0.06, -0.21, -0.14)
+names(OR_coefs_youth) <- names(model_ams_OR_youth$coefficients)
+model_ams_OR_youth$coefficients <- OR_coefs_youth
+
+# Predictions 
+data_test$ams_OR_youth <- predict(model_ams_OR_youth, data_test, type="response")
+
+
+# Dataframes with predictions ------------------------------------------------------------------------------------------
 # Get model and task namelist combination for the following computations
 task_ids = lapply(tab_bmr$task, function(i) i$id)
 learner_ids = lapply(tab_bmr$learner, function(i) i$id)
@@ -213,21 +246,20 @@ names(confusion_list) <- task_learner_ids
 
 # Scores for all models
 scores_list = lapply(tab_bmr$prediction, 
-       function(i) i$score(measures = c(performance_measures, fairness_measures_absdiff), task = task_ams_youth))
+                     function(i) i$score(measures = c(performance_measures, fairness_measures_absdiff), task = task_ams_youth))
 names(scores_list) <- task_learner_ids
 
 # Predcitions for all models
 prediction_list = tab_bmr$prediction
 names(prediction_list) <- task_learner_ids
 
-# Dataframes with predictions ------------------------------------------------------------------------------------------
 # Dataframe variant 2 __________________________________________________________________________________________________
 df2 = data.frame(task = unlist(task_ids))
 df2 = expand(df2, task, test_ids) # sollte tasks Anzahl mal test rows sein
 
-truth = data.frame(test_ids = test_ids, truth = prediction_list[[2]]$truth)
-df2 = full_join(df2, truth, by = "test_ids")
-df2$truth_01 <- ifelse(df2$truth == '>=90 Days', 1, 0)
+#truth = data.frame(test_ids = test_ids, truth = prediction_list[[2]]$truth)
+df2 = full_join(df2, data_test, by = "test_ids")
+df2$truth_01 <- ifelse(df2$EMPLOYMENTDAYS == '>=90 Days', 1, 0)
 
 probs = lapply(prediction_list, function(i) i$prob[,1])
 probs = as.data.frame(do.call(cbind, probs))
@@ -251,9 +283,9 @@ df2 = full_join(df2, probs_df, by = c("task","test_ids"))
 df1 = data.frame(task = unlist(task_ids), model = unlist(learner_ids))
 df1 = expand(df1, task, model, test_ids) # sollte tasks, model Anzahl mal test rows sein
 
-truth = data.frame(test_ids = test_ids, truth = prediction_list[[2]]$truth)
-df1 = full_join(df1, truth, by = "test_ids")
-df1$truth_01 <- ifelse(df1$truth == '>=90 Days', 1, 0)
+#truth = data.frame(test_ids = test_ids, truth = prediction_list[[2]]$truth)
+df1 = full_join(df1, data_test, by = "test_ids")
+df1$truth_01 <- ifelse(df1$EMPLOYMENTDAYS == '>=90 Days', 1, 0)
 
 #sapply(df_list, function(i) pivot_longer(i, unique(unlist(learner_ids)), names_to = "model", values_to = "probabilities"))
 
@@ -265,8 +297,9 @@ for(i in 2:length(df_list)){
 df1 = full_join(df1, df1_probs, by = c("task", "model", "test_ids"))
 
 # Dataframe variante 3 __________________________________________________________________________________________________
-df3 = data.frame(ids = prediction_list[[1]]$row_ids, truth = prediction_list[[2]]$truth)
-df3$truth_01 <- ifelse(df3$truth == '>=90 Days', 1, 0)
+df3 = data.frame(test_ids = prediction_list[[1]]$row_ids)
+df3 = full_join(df3, data_test, by = "test_ids")
+df3$truth_01 <- ifelse(df3$EMPLOYMENTDAYS == '>=90 Days', 1, 0)
 
 probs = lapply(prediction_list, function(i) i$prob[,1])
 probs = as.data.frame(do.call(cbind, probs))
@@ -274,6 +307,7 @@ probs = as.data.frame(do.call(cbind, probs))
 df3 = cbind(df3, probs)
 
 # Visualizations =======================================================================================================
+# Other ----------------------------------------------------------------------------------------------------------------
 fairness_prediction_density(prediction_list[[2]], task_ams_youth)
 fairness_prediction_density(bmr_ams_youth)
 
@@ -491,9 +525,9 @@ ac <- all_cutoffs(fobject)
 plot(ac)
 
 
+
 ########################################################################################################################
 # RESTE ################################################################################################################
-
 # Benchmark threshold heatmaps zeug ------------------------------------------------------------------------------------
 # Save log_reg coefficients
 # ams_youth_logcoefs <- tab_bmr$learner[[2]]$model$coefficients

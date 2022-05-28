@@ -40,7 +40,7 @@ ids = complete.cases(task_ams_youth$data(test_ids))
 sum(!ids)
 
 # Original AMS full ____________________________________________________________________________________________________
-task_ams = as_task_classif(data[ams], target = "EMPLOYMENTDAYS", positive = ">=90 Days", id = "AMS")
+task_ams = as_task_classif(data[ams], target = "EMPLOYMENTDAYS", positive = ">=90 Days", id = "AMS full")
 
 
 ids = complete.cases(task_ams$data())
@@ -130,5 +130,5 @@ sum(!ids)
 
 
 #setequal(task_ams_youth$data(test_ids), task_green_big$data(test_ids))
-setdiff(task_ams_youth$data(test_ids), task_green_big$data(test_ids))
+#setdiff(task_ams_youth$data(test_ids), task_green_big$data(test_ids))
 
