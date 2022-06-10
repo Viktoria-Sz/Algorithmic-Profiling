@@ -19,8 +19,6 @@ df1$estimate_0.5 = as.factor(ifelse(df1$probabilities >= 0.5, 1, 0))
 # Load other scripts ---------------------------------------------------------------------------------------------------
 source("functions.R", encoding="utf-8") # for predefined feature sets
 
-# Load trained models ----------------------------------------------------------
-
 # Performance ==========================================================================================================
 # Confucion Matrix -----------------------------------------------------------------------------------------------------
 conf_mats = subset(df1, subset = (task == "AMS youth")) %>%
@@ -38,18 +36,6 @@ names(conf_mats_0.5$conf_mat) = conf_mats_0.5$model
 conf_mats_0.5$conf_mat
 
 # ROC and PRC Curves ---------------------------------------------------------------------------------------------------
-df1[1:10, c("task", "model", "probabilities")]
-
-subset = subset(df1, subset = (task == "AMS youth"))
-subset(subset, subset = ( model == "OR" ), c(probabilities,truth_01, test_ids, task))
-subset(df1, subset = (task == "AMS youth" & model == "OR" ), probabilities)
-subset(df2, subset = (task == "AMS youth"), OR)
-subset(df3, subset = (task == "AMS youth" & model != "OR" ))
-
-
-autoplot(roc_curve(subset(df1, subset = (task == "AMS youth" & model == "Logistic Regression")), 
-                   truth_01, probabilities, event_level = "second"))
-
 for(i in unique(df1$task)){
   subset(df1, subset = (task == i)) %>%
     filter(!is.na(probabilities)) %>%
@@ -89,23 +75,29 @@ subset(df1, subset = (task == "AMS youth")) %>%
 
 # Performance Measures and Heatmap -------------------------------------------------------------------------------------
 # Measures
-performance_measure_set = metric_set(accuracy, sens, spec, recall, precision, ppv, npv)
+performance_measure_set = metric_set(accuracy, 
+                                     sens, # sensitivity, recall, TPR
+                                     spec, # specificity, TNR
+                                     precision, # Precision, Positive predictive value PPV
+                                     f_meas # fbeta, with beta = 1
+                                     )
+
 
 performance_measures = df1 %>%
   filter(task == "AMS youth") %>%
   group_by(model) %>%
-  performance_measure_set(truth_01, estimate = estimate_0.66)
+  performance_measure_set(truth_01, estimate = estimate_0.66, event_level = 'second')
 
 measures_female = df1 %>%
   filter(task == "AMS youth" & GENDER == "female") %>%
   group_by(model) %>%
-  performance_measure_set(truth_01, estimate = estimate_0.66) %>%
+  performance_measure_set(truth_01, estimate = estimate_0.66, event_level = 'second') %>%
   rename(female = .estimate)
 
 measures_male = df1 %>%
   filter(task == "AMS youth" & GENDER == "male") %>%
   group_by(model) %>%
-  performance_measure_set(truth_01, estimate = estimate_0.66) %>%
+  performance_measure_set(truth_01, estimate = estimate_0.66, event_level = 'second') %>%
   rename(male = .estimate)
 
 measures = full_join(performance_measures, measures_female, by = c("model", ".metric", ".estimator"))
@@ -113,23 +105,43 @@ measures = full_join(measures, measures_male, by = c("model", ".metric", ".estim
 
 # AUC
 auc = df1 %>%
-  filter(task == "AMS youth") %>%
+  filter(task == "AMS youth" & GENDER == "female") %>%
   group_by(model) %>%
   roc_auc(truth_01, probabilities, event_level = 'second')
 
-performance_measures = bind_rows(performance_measures, auc)
+auc_female = df1 %>%
+  filter(task == "AMS youth" & GENDER == "female") %>%
+  group_by(model) %>%
+  roc_auc(truth_01, probabilities, event_level = 'second') %>%
+  rename(female = .estimate)
 
-performance_measures = msrs(c("classif.acc"
-                              , "classif.auc" # id = "AUC"
-                              , "classif.tpr" # Wie viele Leute wurden richtig in H Kategorie gruppiert
-                              , "classif.tnr" # Wie viele Leute wurden richtig in M Kategorie gruppiert
-                              , "classif.fpr" # Wie viele Leute wurden fälschlich in H Kategorie gruppiert
-                              , "classif.fnr" # Wie viele Leute wurden fälschlich in M Kategorie gruppiert
-                              #, "classif.ce"
-                              , "classif.fbeta"
-))
+auc_male = df1 %>%
+  filter(task == "AMS youth" & GENDER == "male") %>%
+  group_by(model) %>%
+  roc_auc(truth_01, probabilities, event_level = 'second') %>%
+  rename(male = .estimate)
+
+auc = full_join(auc, auc_female, by = c("model", ".metric", ".estimator"))
+auc = full_join(auc, auc_male, by = c("model", ".metric", ".estimator"))
+
+measures = bind_rows(measures, auc)
 
 
 # Heatmap
-heatmap(performance_measures, model, .metric, .estimate)
+heatmap(measures, model, .metric, .estimate)
+heatmap(measures, model, .metric, male)
+heatmap(measures, model, .metric, female)
 
+
+# RESTE ################################################################################################################
+df1[1:10, c("task", "model", "probabilities")]
+
+subset = subset(df1, subset = (task == "AMS youth"))
+subset(subset, subset = ( model == "OR" ), c(probabilities,truth_01, test_ids, task))
+subset(df1, subset = (task == "AMS youth" & model == "OR" ), probabilities)
+subset(df2, subset = (task == "AMS youth"), OR)
+subset(df3, subset = (task == "AMS youth" & model != "OR" ))
+
+
+autoplot(roc_curve(subset(df1, subset = (task == "AMS youth" & model == "Logistic Regression")), 
+                   truth_01, probabilities, event_level = "second"))
