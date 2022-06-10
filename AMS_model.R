@@ -9,7 +9,7 @@ library(pROC)
 # library(ISLR)
 #options(na.action = na.warn)
 options(scipen=100) # prevent scientific notion (e)
-set.seed(25)
+set.seed(42)
 
 # Load data ------------------------------------------------------------------------------------------------------------
 data <- readRDS("data/JuSAW_prepared.rds")
