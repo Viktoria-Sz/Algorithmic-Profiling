@@ -217,7 +217,7 @@ names(OR_coefs) <- names(model_ams_OR$coefficients)
 model_ams_OR$coefficients <- OR_coefs
 
 # Predictions 
-data_test$ams_full_OR <- predict(model_ams_OR, data_test, type="response")
+ams_full_OR <- predict(model_ams_OR, data_test, type="response")
 
 
 # AMS youth ____________________________________________________________________________________________________________
@@ -231,7 +231,7 @@ names(OR_coefs_youth) <- names(model_ams_OR_youth$coefficients)
 model_ams_OR_youth$coefficients <- OR_coefs_youth
 
 # Predictions 
-data_test$ams_OR_youth <- predict(model_ams_OR_youth, data_test, type="response")
+ams_youth_OR <- predict(model_ams_OR_youth, data_test, type="response")
 
 
 # Dataframes with predictions ------------------------------------------------------------------------------------------
@@ -259,7 +259,7 @@ df2 = expand(df2, task, test_ids) # sollte tasks Anzahl mal test rows sein
 
 #truth = data.frame(test_ids = test_ids, truth = prediction_list[[2]]$truth)
 df2 = full_join(df2, data_test, by = "test_ids")
-df2$truth_01 <- ifelse(df2$EMPLOYMENTDAYS == '>=90 Days', 1, 0)
+df2$truth_01 <- as.factor(ifelse(df2$EMPLOYMENTDAYS == '>=90 Days', 1, 0))
 
 probs = lapply(prediction_list, function(i) i$prob[,1])
 probs = as.data.frame(do.call(cbind, probs))
@@ -279,13 +279,24 @@ probs_df = bind_rows(df_list)
 
 df2 = full_join(df2, probs_df, by = c("task","test_ids"))
 
+# Add OR predictions
+ams_full_OR_ = data.frame(test_ids, task = "AMS full", OR = ams_full_OR)
+ams_youth_OR_ = data.frame(test_ids, task = "AMS youth", OR = ams_youth_OR)
+ams_OR = rbind(ams_full_OR_, ams_youth_OR_)
+
+df2 = full_join(df2, ams_OR, by = c("test_ids", "task"))
+
+save(df2, file="data/df2.Rda")
+
 # Dataframe variant 1 __________________________________________________________________________________________________
 df1 = data.frame(task = unlist(task_ids), model = unlist(learner_ids))
+df1[nrow(df1) + 1,] <- c("AMS youth", "OR")
+df1[nrow(df1) + 1,] <- c("AMS full", "OR")
 df1 = expand(df1, task, model, test_ids) # sollte tasks, model Anzahl mal test rows sein
 
 #truth = data.frame(test_ids = test_ids, truth = prediction_list[[2]]$truth)
 df1 = full_join(df1, data_test, by = "test_ids")
-df1$truth_01 <- ifelse(df1$EMPLOYMENTDAYS == '>=90 Days', 1, 0)
+df1$truth_01 <- as.factor(ifelse(df1$EMPLOYMENTDAYS == '>=90 Days', 1, 0))
 
 #sapply(df_list, function(i) pivot_longer(i, unique(unlist(learner_ids)), names_to = "model", values_to = "probabilities"))
 
@@ -294,17 +305,33 @@ for(i in 2:length(df_list)){
   df1_other = pivot_longer(df_list[[i]], unique(unlist(learner_ids)), names_to = "model", values_to = "probabilities")
   df1_probs = rbind(df1_probs, df1_other)
 }
+
+# Add OR predictions
+ams_full_OR_ = data.frame(test_ids, model = "OR", task = "AMS full", probabilities = ams_full_OR)
+ams_youth_OR_ = data.frame(test_ids, model = "OR", task = "AMS youth", probabilities = ams_youth_OR)
+
+df1_probs = bind_rows(df1_probs, ams_full_OR_, ams_youth_OR_)
+
+
 df1 = full_join(df1, df1_probs, by = c("task", "model", "test_ids"))
+
+save(df1, file="data/df1.Rda")
 
 # Dataframe variante 3 __________________________________________________________________________________________________
 df3 = data.frame(test_ids = prediction_list[[1]]$row_ids)
+
+data_test$ams_youth_OR = ams_youth_OR
+data_test$ams_full_OR = ams_full_OR
+
 df3 = full_join(df3, data_test, by = "test_ids")
-df3$truth_01 <- ifelse(df3$EMPLOYMENTDAYS == '>=90 Days', 1, 0)
+df3$truth_01 <- as.factor(ifelse(df3$EMPLOYMENTDAYS == '>=90 Days', 1, 0))
 
 probs = lapply(prediction_list, function(i) i$prob[,1])
 probs = as.data.frame(do.call(cbind, probs))
 
 df3 = cbind(df3, probs)
+
+save(df3, file="data/df3.Rda")
 
 # Visualizations =======================================================================================================
 # Other ----------------------------------------------------------------------------------------------------------------
@@ -316,21 +343,7 @@ fairness_accuracy_tradeoff(bmr_ams_youth, msr("fairness.fpr"))
 compare_metrics(bmr_ams_youth, msrs(c("classif.acc", "classif.auc", "fairness.fpr")))+
   theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
 
-# Heatmap function -----------------------------------------------------------------------------------------------------
-heatmap <- function(df, var_y, var_x, fill) {
-  var_x <- enquo(var_x) # Variable verwendbar machen in ggplot
-  var_y <- enquo(var_y) # Variable verwendbar machen in ggplot
-  fill <- enquo(fill) # Variable verwendbar machen in ggplot
-  
-  ggplot(df, aes(y= !!var_y, x = !!var_x, fill = !!fill)) +
-    geom_tile() +
-    theme(axis.title.x=element_blank(),axis.title.y=element_blank(),
-          axis.text.x = element_text(angle = 70, vjust = 1, hjust=1)) + 
-    geom_text(aes(label = round(!!fill, 2))) +
-    scale_fill_distiller(palette = "OrRd", direction = 1, limits = c(0,1)) 
-}
-
-
+# Heatmaps -------------------------------------------------------------------------------------------------------------
 # Heatmap for performance metrics ______________________________________________________________________________________
 scores_list[[2]][1:4]
 names(scores_list)[2]
