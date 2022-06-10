@@ -1,88 +1,135 @@
-# EVALUATION ###################################################################
-# Preparation ==================================================================
-# Libraries --------------------------------------------------------------------
-library(fairness)
-library(fairmodels)
+# EVALUATION ###########################################################################################################
+# Preparation ==========================================================================================================
+# Libraries ------------------------------------------------------------------------------------------------------------
+library(tidyverse)
+library(fairness) # fairness
+library(yardstick) # performance
+#library(pROC)
 
-# Load data --------------------------------------------------------------------
 
+# Load data ------------------------------------------------------------------------------------------------------------
+load("data/df1.Rda")
+load("data/df2.Rda")
+load("data/df3.Rda")
 
-# Load other scripts -----------------------------------------------------------
+# make estimate column with 0.66 and 0.5
+df1$estimate_0.66 = as.factor(ifelse(df1$probabilities >= 0.66, 1, 0))
+df1$estimate_0.5 = as.factor(ifelse(df1$probabilities >= 0.5, 1, 0))
 
+# Load other scripts ---------------------------------------------------------------------------------------------------
+source("functions.R", encoding="utf-8") # for predefined feature sets
 
 # Load trained models ----------------------------------------------------------
 
-# Performance ==================================================================
+# Performance ==========================================================================================================
+# Confucion Matrix -----------------------------------------------------------------------------------------------------
+conf_mats = subset(df1, subset = (task == "AMS youth")) %>%
+  group_by(model) %>%
+  conf_mat(truth_01, estimate = estimate_0.66)
 
-# Fairness =====================================================================
+names(conf_mats$conf_mat) = conf_mats$model
+conf_mats$conf_mat
 
-# Predictive Rate Parity
-res1 <- pred_rate_parity(data = data, outcome = "truth", outcome_base = "0", 
-                         group = "GESCHLECHT_WEIBLICH", probs = "prob_ams", cutoff = 0.66, base = "male")
-res1$Metric
-res1$Metric_plot
-res1$Probability_plot
+conf_mats_0.5 = subset(df1, subset = (task == "AMS youth")) %>%
+  group_by(model) %>%
+  conf_mat(truth_01, estimate = estimate_0.5)
 
-# Demographic Parity
-res_dem <- dem_parity(data = data, outcome = "truth", outcome_base = "0", 
-                      group = "GESCHLECHT_WEIBLICH", probs = "prob_ams", cutoff = 0.66, base = "male")
-res_dem$Metric
-res_dem$Metric_plot
-res_dem$Probability_plot
+names(conf_mats_0.5$conf_mat) = conf_mats_0.5$model
+conf_mats_0.5$conf_mat
 
-# Proportional Parity
-res_prop <- prop_parity(data = data, outcome = "truth", outcome_base = "0", 
-                        group = "GESCHLECHT_WEIBLICH", probs = "prob_ams", cutoff = 0.66, base = "male")
-res_prop$Metric
-res_prop$Metric_plot
+# ROC and PRC Curves ---------------------------------------------------------------------------------------------------
+df1[1:10, c("task", "model", "probabilities")]
 
-# Equalized Odds
-res_eq <- equal_odds(data = data, outcome = "truth", outcome_base = "0", 
-                     group = "GESCHLECHT_WEIBLICH", probs = "prob_ams", cutoff = 0.66, base = "male")
-res_eq$Metric
-res_eq$Metric_plot
-res_eq$Probability_plot
+subset = subset(df1, subset = (task == "AMS youth"))
+subset(subset, subset = ( model == "OR" ), c(probabilities,truth_01, test_ids, task))
+subset(df1, subset = (task == "AMS youth" & model == "OR" ), probabilities)
+subset(df2, subset = (task == "AMS youth"), OR)
+subset(df3, subset = (task == "AMS youth" & model != "OR" ))
 
-# Accuracy Parity
-res_acc <- acc_parity(data = data, outcome = "truth", outcome_base = "0", 
-                      group = "GESCHLECHT_WEIBLICH", probs = "prob_ams", cutoff = 0.66, base = "male")
-res_acc$Metric
-res_acc$Metric_plot
-res_acc$Probability_plot
 
-# False Negative Rate Parity
-res_fnr <- fnr_parity(data = data, outcome = "truth", outcome_base = "0", 
-                      group = "GESCHLECHT_WEIBLICH", probs = "predicted_prob1", cutoff = 0.66, base = "male")
-res_fnr$Metric
-res_fnr$Metric_plot
+autoplot(roc_curve(subset(df1, subset = (task == "AMS youth" & model == "Logistic Regression")), 
+                   truth_01, probabilities, event_level = "second"))
 
-# False Positive Rate Parity
-res_fpr <- fpr_parity(data = data, outcome = "truth", outcome_base = "0", 
-                      group = "GESCHLECHT_WEIBLICH", probs = "predicted_prob1", cutoff = 0.66, base = "male")
-res_fpr$Metric
-res_fpr$Metric_plot
+for(i in unique(df1$task)){
+  subset(df1, subset = (task == i)) %>%
+    filter(!is.na(probabilities)) %>%
+    #filter(model == "OR" | model == "Logistic Regression" | model == "encode.colapply.classif.glmnet") %>%
+    group_by(model) %>%
+    roc_curve(truth_01, probabilities, event_level = 'second') %>%
+    autoplot() +
+    ggtitle(i)
+}
 
-# Negative Predictive Value Parity
-res_npv <- npv_parity(data = data, outcome = "truth", outcome_base = "0", 
-                      group = "GESCHLECHT_WEIBLICH", probs = "predicted_prob1", cutoff = 0.66, base = "male")
-res_npv$Metric
-res_npv$Metric_plot
+for(i in unique(df1$task)){
+  sub = subset(df1, subset = (task == i)) %>%
+    filter(!is.na(probabilities)) %>%
+    #filter(model == "OR" | model == "Logistic Regression" | model == "encode.colapply.classif.glmnet") %>%
+    group_by(model)
+  
+   autoplot(roc_curve(sub, truth_01, probabilities, event_level = 'second'))  +
+    ggtitle(i)
+}
 
-# Specificity Parity
-res_sp <- spec_parity(data = data, outcome = "truth", outcome_base = "0", 
-                      group = "GESCHLECHT_WEIBLICH", probs = "predicted_prob1", cutoff = 0.66, base = "male")
-res_sp$Metric
-res_sp$Metric_plot
+subset(df1, subset = (task == "AMS youth")) %>%
+  #filter(model == "OR" | model == "Logistic Regression" | model == "encode.colapply.classif.glmnet") %>%
+  group_by(model) %>%
+  roc_curve(truth_01, probabilities, event_level = 'second') %>%
+  autoplot() +
+  ggtitle("AMS youth")
 
-# ROC AUC Parity
-res_auc <- roc_parity(data = data, outcome = "truth", 
-                      group = "GESCHLECHT_WEIBLICH", probs = "predicted_prob1", base = "male")
-res_auc$Metric
-res_auc$Metric_plot
-res_auc$ROCAUC_plot
 
-# Matthews correlation coefficient Parity
-res_mcc <- mcc_parity(data = data, outcome = "truth", outcome_base = "0", 
-                      group = "GESCHLECHT_WEIBLICH", probs = "predicted_prob1", cutoff = 0.66, base = "male")
-res_mcc$Metric
-res_mcc$Metric_plot
+# PRC curve
+subset(df1, subset = (task == "AMS youth")) %>%
+  #filter(model == "OR" | model == "Logistic Regression" | model == "encode.colapply.classif.glmnet") %>%
+  group_by(model) %>%
+  pr_curve(truth_01, probabilities, event_level = 'second') %>%
+  autoplot() +
+  ggtitle("AMS youth")
+
+
+# Performance Measures and Heatmap -------------------------------------------------------------------------------------
+# Measures
+performance_measure_set = metric_set(accuracy, sens, spec, recall, precision, ppv, npv)
+
+performance_measures = df1 %>%
+  filter(task == "AMS youth") %>%
+  group_by(model) %>%
+  performance_measure_set(truth_01, estimate = estimate_0.66)
+
+measures_female = df1 %>%
+  filter(task == "AMS youth" & GENDER == "female") %>%
+  group_by(model) %>%
+  performance_measure_set(truth_01, estimate = estimate_0.66) %>%
+  rename(female = .estimate)
+
+measures_male = df1 %>%
+  filter(task == "AMS youth" & GENDER == "male") %>%
+  group_by(model) %>%
+  performance_measure_set(truth_01, estimate = estimate_0.66) %>%
+  rename(male = .estimate)
+
+measures = full_join(performance_measures, measures_female, by = c("model", ".metric", ".estimator"))
+measures = full_join(measures, measures_male, by = c("model", ".metric", ".estimator"))
+
+# AUC
+auc = df1 %>%
+  filter(task == "AMS youth") %>%
+  group_by(model) %>%
+  roc_auc(truth_01, probabilities, event_level = 'second')
+
+performance_measures = bind_rows(performance_measures, auc)
+
+performance_measures = msrs(c("classif.acc"
+                              , "classif.auc" # id = "AUC"
+                              , "classif.tpr" # Wie viele Leute wurden richtig in H Kategorie gruppiert
+                              , "classif.tnr" # Wie viele Leute wurden richtig in M Kategorie gruppiert
+                              , "classif.fpr" # Wie viele Leute wurden fälschlich in H Kategorie gruppiert
+                              , "classif.fnr" # Wie viele Leute wurden fälschlich in M Kategorie gruppiert
+                              #, "classif.ce"
+                              , "classif.fbeta"
+))
+
+
+# Heatmap
+heatmap(performance_measures, model, .metric, .estimate)
+
