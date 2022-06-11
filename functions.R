@@ -11,11 +11,24 @@ heatmap <- function(df, var_y, var_x, fill) {
     theme(axis.title.x=element_blank(),axis.title.y=element_blank(),
           axis.text.x = element_text(angle = 70, vjust = 1, hjust=1)) + 
     geom_text(aes(label = round(!!fill, 2))) +
-    scale_fill_distiller(palette = "OrRd", direction = 1, limits = c(0,1)) 
+    scale_fill_distiller(palette = "OrRd", direction = -1, limits = c(0,1)) 
+}
+
+heatmap_diff <- function(df, var_y, var_x, fill) {
+  var_x <- enquo(var_x) # Variable verwendbar machen in ggplot
+  var_y <- enquo(var_y) # Variable verwendbar machen in ggplot
+  fill <- enquo(fill) # Variable verwendbar machen in ggplot
+  
+  ggplot(df, aes(y= !!var_y, x = !!var_x, fill = !!fill)) +
+    geom_tile() +
+    theme(axis.title.x=element_blank(),axis.title.y=element_blank(),
+          axis.text.x = element_text(angle = 70, vjust = 1, hjust=1)) + 
+    geom_text(aes(label = round(!!fill, 2))) +
+    scale_fill_distiller(palette = "RdYlBu", direction = 1) 
 }
 
 
-# Plot functions ===============================================================
+# Plot functions =======================================================================================================
 df_t0t1 <- function(data, variable, variable_t1){
   var <- enquo(variable)
   var_t1 <- enquo(variable_t1)
