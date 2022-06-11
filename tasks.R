@@ -6,12 +6,14 @@ set.seed(42)
 # load preperad dataset
 data <- readRDS("data/JuSAW_prepared.rds")
 
+
 # Load other scripts ---------------------------------------------------------------------------------------------------
 source("variable_sets.R", encoding="utf-8") # for predefined feature sets
 
 # Load test ids
 #write(ids, file = "test_ids.txt")
 test_ids = scan("test_ids.txt")
+test_ids_case = scan("test_ids_case.txt")
 
 # Task set-up ==========================================================================================================
 # Set up different tasks with different variable sets 
@@ -75,7 +77,7 @@ unique(task_ams_ext$feature_types$type)
 
 # Explorative Analysis variables ---------------------------------------------------------------------------------------
 # Green big ____________________________________________________________________________________________________________
-task_green_big = as_task_classif(data[green_big], target = "EMPLOYMENTDAYS", positive = ">=90 Days", id = "green big")
+task_green_big = as_task_classif(data[c("case", green_big)], target = "EMPLOYMENTDAYS", positive = ">=90 Days", id = "green big")
 
 
 ids = complete.cases(task_green_big$data())
@@ -102,6 +104,8 @@ sum(!ids)
 # ho$instantiate(task_green_big)
 # ho$test_set(1)
 # write(ho$test_set(1), file = "test_ids.txt")
+
+# write(task_green_big$data(test_ids)$case, file = "test_ids_case.txt")
 
 # Green small __________________________________________________________________________________________________________
 task_green = as_task_classif(data[green], target = "EMPLOYMENTDAYS", positive = ">=90 Days", id = "green")
