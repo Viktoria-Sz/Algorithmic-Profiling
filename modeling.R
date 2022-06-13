@@ -22,13 +22,13 @@ data_test = data[test_ids,]
 #setequal(data_test$EMPLOYMENTDAYS, df3$truth)
 data_test$test_ids = test_ids
 
-
 # Set-up modeling ======================================================================================================
 # Tasks ----------------------------------------------------------------------------------------------------------------
 tasks = list(task_ams_youth
           , task_ams
           , task_ams_ext
           , task_green
+          #, task_filtering
           )
 
 # Evaluation measures (use msrs() to get a list of all measures --------------------------------------------------------
@@ -116,10 +116,12 @@ resampling_costum = rsmp("custom")
 
 learners = list(lrn("classif.featureless", id = "Featureless", predict_type = "prob", predict_sets = "test")
               , lrn("classif.log_reg", id = "Logistic Regression", predict_type = "prob", predict_sets = "test")
-              #, lrn("classif.log_reg", id = "Logistic Regression doc", predict_type = "prob", predict_sets = "test")
-              , lrn("classif.rpart", id = "Decision Tree", predict_type = "prob", predict_sets = "test")
-              , lrn("classif.ranger", id = "Random Forest", predict_type = "prob", predict_sets = "test")
-              , lrn("classif.kknn", id = "KKNN", predict_type = "prob", predict_sets = "test")
+              , graph_glmnet
+              , tuner_rpart
+              , tuner_ranger
+              , graph_xgboost
+              , tuner_kknn
+              # , graph_svm
               )
 
 #lapply(learners, function(i) i$feature_types)
@@ -136,25 +138,20 @@ set.seed(42)
 #                         )
 
 grid = data.table::CJ(task = tasks, 
-                      learner = c(learners, graph_glmnet, graph_xgboost, graph_svm), 
+                      learner = learners, #c(learners, graph_glmnet, graph_xgboost, graph_svm), 
                       resampling = list(resampling_costum), sorted = FALSE)
 
-# manual instantiation 
+# manual instantiation, since I have a costum test set
 Map(function(task, resampling) 
   {resampling$instantiate(task, train_sets = list(setdiff(task$row_ids, test_ids)), test_sets = list(test_ids))}, 
     task =  grid$task, resampling =  grid$resampling)
 
 
 # Training =============================================================================================================
-#execute_start_time <- Sys.time()
+execute_start_time <- Sys.time()
 bmr = benchmark(grid, store_models = TRUE)
-#evaluation_time <- Sys.time() - execute_start_time 
-#rm(execute_start_time)
-
-bmr_ams_youth <- bmr$clone(deep = TRUE)$filter(task_id = "AMS youth")
-bmr_ams <- bmr$clone(deep = TRUE)$filter(task_id = "AMS full")
-bmr_ams_ext <- bmr$clone(deep = TRUE)$filter(task_id = "AMS extended")
-bmr_green <- bmr$clone(deep = TRUE)$filter(task_id = "green")
+evaluation_time <- Sys.time() - execute_start_time 
+rm(execute_start_time)
 
 # Evaluation ===========================================================================================================
 print(bmr)
@@ -170,42 +167,41 @@ bmr$score(c(performance_measures, fairness_measures_diff))
 bmr$score(group_measures)
 
 
-# ROC and PRC Curves ---------------------------------------------------------------------------------------------------
-autoplot(bmr, type = "boxplot", measure = msr("classif.auc")) +
-  theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
+# Make data table from benchmark result for further evaluation _________________________________________________________
+tab_bmr <- as.data.table(bmr)
 
-# ROC curve
-# Sensitivity = Recall = TPR = Wie viele Leute wurden richtig in H Kategorie gruppiert TP/(TP + FN)
-# Specificity = TNR = Wie viele Leute wurden richtig in M Kategorie gruppiert = TN/(TN + FP)
-# 1 – specificity = False positive rate (FPR) = Wie viele wurden fälschlich in Kategorie H gruppiert
-autoplot(bmr_ams_youth, type = "roc")
-autoplot(bmr_ams, type = "roc")
-autoplot(bmr_ams_ext, type = "roc")
-autoplot(bmr_green, type = "roc")
-# ROC curve mit bestem Modell je Task und dann zusammen?
+# Get selected feature sets --------------------------------------------------------------------------------------------
 
-# Precision, Recall Plot
-# Recall = Sensitivity = TPR = Wie viele Leute wurden richtig in H Kategorie gruppiert
-# Precision = Positive predictive value = TP/(TP + FP)
-autoplot(bmr_ams_youth, type = "prc")
-autoplot(bmr_ams, type = "prc")
-autoplot(bmr_ams_ext, type = "prc")
-autoplot(bmr_green, type = "prc")
-# The ratio of positives and negatives defines the baseline. What is it?
+mlr3misc::map(as.data.table(bmr)$learner, "model")
+
+tab_bmr$learner[[26]]$model$learner$importance()
+tab_bmr$learner[[25]]$model$learner$selected_features()
+
+# Selected Features for regularized models
+# GLMnet
+# GLM with Elastic Net Regularization Classification Learner
+#graph_glmnet$selected_features(lambda = NULL)
+
+# Decision Tree
+
+# Random Forest
+
+# Variable Importance:
+# xgboost
+#LearnerClassifXgboost$importance()
+
+# Ranger
+#LearnerClassifRanger$importance()
+tuner_ranger$archive
+
+# Decision Tree
+#LearnerClassifRpart$importance()
 
 
 # Set threshold to 66% as in the ams paper -----------------------------------------------------------------------------
-tab_bmr <- as.data.table(bmr)
-
 lapply(tab_bmr$prediction, function(i) i$set_threshold(0.66))
 
-
-tab_bmr$prediction[[1]]$confusion
-tab_bmr$prediction[[1]]$score(measures = c(performance_measures, fairness_measures), task = tab_bmr$task[[1]])
-tab_bmr$task[[2]]$id
-tab_bmr$task[[2]]$col_roles$pta
-tab_bmr$learner[[2]]$id
-
+# Make Dataframes with all predictions + Documentation OR predictions ==================================================
 # Predict AMS doc ------------------------------------------------------------------------------------------------------
 # AMS full _____________________________________________________________________________________________________________
 f_ams <- as.formula(paste("EMPLOYMENTDAYS", paste(ams[-1], collapse = "+"), sep = "~"))
@@ -239,15 +235,6 @@ ams_youth_OR <- predict(model_ams_OR_youth, data_test, type="response")
 task_ids = lapply(tab_bmr$task, function(i) i$id)
 learner_ids = lapply(tab_bmr$learner, function(i) i$id)
 task_learner_ids = paste(task_ids, learner_ids, sep=", ")
-
-# Confusion Matrix for all models
-confusion_list = lapply(tab_bmr$prediction, function(i) i$confusion)
-names(confusion_list) <- task_learner_ids
-
-# Scores for all models
-scores_list = lapply(tab_bmr$prediction, 
-                     function(i) i$score(measures = c(performance_measures, fairness_measures_absdiff), task = task_ams_youth))
-names(scores_list) <- task_learner_ids
 
 # Predcitions for all models
 prediction_list = tab_bmr$prediction
@@ -782,3 +769,47 @@ for(i in 1:length(tasks)){
   train_set = list(setdiff(tasks[[i]]$row_ids, test_ids))
   resampling_costum$instantiate(tasks[[i]], train_set, test_set)
 }
+# Part Benchmarks for individual tasks with roc curves -----------------------------------------------------------------
+bmr_ams_youth <- bmr$clone(deep = TRUE)$filter(task_id = "AMS youth")
+bmr_ams <- bmr$clone(deep = TRUE)$filter(task_id = "AMS full")
+bmr_ams_ext <- bmr$clone(deep = TRUE)$filter(task_id = "AMS extended")
+bmr_green <- bmr$clone(deep = TRUE)$filter(task_id = "green")
+
+# ROC and PRC Curves 
+autoplot(bmr, type = "boxplot", measure = msr("classif.auc")) +
+  theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
+
+# ROC curve
+# Sensitivity = Recall = TPR = Wie viele Leute wurden richtig in H Kategorie gruppiert TP/(TP + FN)
+# Specificity = TNR = Wie viele Leute wurden richtig in M Kategorie gruppiert = TN/(TN + FP)
+# 1 – specificity = False positive rate (FPR) = Wie viele wurden fälschlich in Kategorie H gruppiert
+autoplot(bmr_ams_youth, type = "roc")
+autoplot(bmr_ams, type = "roc")
+autoplot(bmr_ams_ext, type = "roc")
+autoplot(bmr_green, type = "roc")
+# ROC curve mit bestem Modell je Task und dann zusammen?
+
+# Precision, Recall Plot
+# Recall = Sensitivity = TPR = Wie viele Leute wurden richtig in H Kategorie gruppiert
+# Precision = Positive predictive value = TP/(TP + FP)
+autoplot(bmr_ams_youth, type = "prc")
+autoplot(bmr_ams, type = "prc")
+autoplot(bmr_ams_ext, type = "prc")
+autoplot(bmr_green, type = "prc")
+# The ratio of positives and negatives defines the baseline. What is it?
+
+# Stuff ----------------------------------------------------------------------------------------------------------------
+tab_bmr$prediction[[1]]$confusion
+tab_bmr$prediction[[1]]$score(measures = c(performance_measures, fairness_measures), task = tab_bmr$task[[1]])
+tab_bmr$task[[2]]$id
+tab_bmr$task[[2]]$col_roles$pta
+tab_bmr$learner[[2]]$id
+
+# Confusion Matrix for all models
+confusion_list = lapply(tab_bmr$prediction, function(i) i$confusion)
+names(confusion_list) <- task_learner_ids
+
+# Scores for all models
+scores_list = lapply(tab_bmr$prediction, 
+                     function(i) i$score(measures = c(performance_measures, fairness_measures_absdiff), task = task_ams_youth))
+names(scores_list) <- task_learner_ids
