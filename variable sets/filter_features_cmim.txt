@@ -1,0 +1,15 @@
+risk
+occupationgroup_all
+tiere_no
+education
+locus_nocontrol
+edudad
+edumum
+effortmot
+extrins
+ability
+e_unterstutz
+intrins
+reserve
+socialmeet
+sdt

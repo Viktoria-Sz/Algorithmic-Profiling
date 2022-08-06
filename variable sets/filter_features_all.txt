@@ -1,0 +1,10 @@
+OCCUPATIONGROUP_all
+effortmot
+edudad
+dep_energie
+socialmeet
+p_extravert
+p_insecure
+p_laidback
+EDUCATION
+schlaf

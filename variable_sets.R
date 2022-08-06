@@ -125,18 +125,18 @@ influencable <- janitor::make_clean_names(influencable)
 
 # Variable selection methods ===========================================================================================
 # Variable sets from filtering -----------------------------------------------------------------------------------------
-filtering_green = scan("filter_features.txt", what="character")
+filtering_green = scan("variable sets/filter_features.txt", what="character")
 filtering_green <- janitor::make_clean_names(filtering_green)
 
-filtering_all = scan("filter_features_all.txt", what="character")
+filtering_all = scan("variable sets/filter_features_all.txt", what="character")
 filtering_all <- janitor::make_clean_names(filtering_all)
 
-filtering_disr = scan("filter_features_disr.txt", what="character")
+filtering_disr = scan("variable sets/filter_features_disr.txt", what="character")
 filtering_disr <- janitor::make_clean_names(filtering_disr)
 
-filtering_cmim = scan("filter_features_cmim.txt", what="character")
+filtering_cmim = scan("variable sets/filter_features_cmim.txt", what="character")
 filtering_cmim <- janitor::make_clean_names(filtering_cmim)
 
-filtering_relief = scan("filter_features_relief.txt", what="character")
+filtering_relief = scan("variable sets/filter_features_relief.txt", what="character")
 filtering_relief <- janitor::make_clean_names(filtering_relief)
 

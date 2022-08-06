@@ -1,0 +1,15 @@
+risk
+tiere_no
+edumum
+e_unterstutz
+edudad
+trust
+occupationgroup_all
+lifesat
+effortmot
+sw_selbstwert
+ability
+exp
+drecall
+familyvalue
+recall

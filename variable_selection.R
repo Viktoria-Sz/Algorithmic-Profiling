@@ -57,10 +57,10 @@ filter_features_disr = features_15$disr
 filter_features_cmim = features_15$cmim
 filter_features_relief = features_15$relief
 
-#write(filter_features, file = "filter_features_all.txt")
-write(filter_features_disr, file = "filter_features_disr.txt")
-write(filter_features_cmim, file = "filter_features_cmim.txt")
-write(filter_features_relief, file = "filter_features_relief.txt")
+#write(filter_features, file = "variable sets/filter_features_all.txt")
+write(filter_features_disr, file = "variable sets/filter_features_disr.txt")
+write(filter_features_cmim, file = "variable sets/filter_features_cmim.txt")
+write(filter_features_relief, file = "variable sets/filter_features_relief.txt")
 
 
 # filter = flt("relief")
