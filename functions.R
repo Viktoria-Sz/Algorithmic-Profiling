@@ -27,8 +27,41 @@ heatmap_diff <- function(df, var_y, var_x, fill) {
     scale_fill_distiller(palette = "RdYlBu", direction = 1) 
 }
 
+# CI-Plot ==============================================================================================================
 
-# Plot functions =======================================================================================================
+# ci_plot
+binom_stats <- function(x, ...) {
+  x <- x$EMPLOYMENTDAYS[!is.na(x$EMPLOYMENTDAYS)]
+  res <- prop.test(x = sum(x == ">=90 Days"), n = length(x), ...)
+  data.frame(Proportion  = unname(res$estimate), 
+             Lower = res$conf.int[1],
+             Upper = res$conf.int[2])
+}
+
+jobfind_rate <- mean(data$EMPLOYMENTDAYS == ">=90 Days")
+
+
+ci_plot <- function(df, var){
+  var <- enquo(var)
+  
+  rates <- df %>%
+    group_by(!!var) %>%
+    do(binom_stats(.)) %>%
+    arrange(Proportion) %>%
+    ungroup() #%>%
+    # mutate(#var = gsub("GENDER_", "", var),
+    #        !!var = reorder(factor(!!var), Proportion))
+  
+  ggplot(rates, aes(x = !!var, y = Proportion)) +
+    geom_hline(yintercept = jobfind_rate, col = "red", alpha = .35, lty = 2) + 
+    geom_point() +
+    geom_errorbar(aes(ymin = Lower, ymax = Upper), width = .1) +
+    theme(axis.text = element_text(size = 8)) +
+    xlab("")
+}
+
+
+# t1-t0 Plot  ==========================================================================================================
 df_t0t1 <- function(data, variable, variable_t1){
   var <- enquo(variable)
   var_t1 <- enquo(variable_t1)
