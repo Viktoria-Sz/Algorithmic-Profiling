@@ -4,17 +4,20 @@ set.seed(42)
 
 # Preperation ==========================================================================================================
 # 3 fold cross validation for inner loop
-resampling_inner_3CV = rsmp("cv", folds = 3L)
+resampling = rsmp("cv", folds = 3L)
+#resampling = rsmp("holdout", ratio = 0.8)
 
-measures_tuning = msr("classif.auc")
+# measures_tuning = msr("classif.auc")
+measures_tuning = msr("classif.acc")
 
 # Choose optimization algorithm:
-# no need to etra randomize, try to go every step
-#tuner_grid_search_ranger = tnr("grid_search", resolution = 5)  
 tuner = tnr("random_search")
+# tuner = tnr("nloptr") # Non-linear Optimization
+# tuner = tnr("gensa") # Generalized Simulated Annealing
 
 # Set the budget (when to terminate):
-terminator = trm("evals", n_evals = 5)
+terminator = trm("evals", n_evals = 1000) 
+# terminator = trm("stagnation") # Terminates when tuning does not find a better configuration for a given number of iterations 
 
 
 # use mlr3tuningspaces for default tuning search spaces
@@ -23,7 +26,7 @@ terminator = trm("evals", n_evals = 5)
 # Additionally, meta information about the search space can be queried.
 as.data.table(mlr_tuning_spaces)
 
-# Tuning spaces from the Bischl (2021) article.
+# Tuning spaces from the Bischl et al. (2021) paper
 
 # Learners =============================================================================================================
 # glmnet: Penalized logistic regression --------------------------------------------------------------------------------
@@ -36,7 +39,7 @@ learner_glmnet$param_set$values
 
 tuner_glmnet = AutoTuner$new(
   learner = learner_glmnet,
-  resampling = resampling_inner_3CV,
+  resampling = resampling,
   measure = measures_tuning, 
   #search_space = param_ranger, 
   terminator = terminator,
@@ -64,7 +67,7 @@ learner_rpart$param_set$values = tuning_space_rpart$values
 
 tuner_rpart = AutoTuner$new(
   learner = learner_rpart,
-  resampling = resampling_inner_3CV,
+  resampling = resampling,
   measure = measures_tuning, 
   #search_space = param_ranger, 
   terminator = terminator,
@@ -88,7 +91,7 @@ learner_ranger$param_set$values = tuning_space_ranger$values
 # Set up autotuner instance with the predefined setups
 tuner_ranger = AutoTuner$new(
   learner = learner_ranger,
-  resampling = resampling_inner_3CV,
+  resampling = resampling,
   measure = measures_tuning, 
   #search_space = param_ranger, 
   terminator = terminator,
@@ -116,7 +119,7 @@ tuning_space_xgboost$values
 # Set up autotuner instance with the predefined setups
 tuner_xgboost = AutoTuner$new(
   learner = learner_xgboost,
-  resampling = resampling_inner_3CV,
+  resampling = resampling,
   measure = measures_tuning, 
   terminator = terminator,
   tuner = tuner
@@ -141,7 +144,7 @@ tuning_space_svm$values
 # Set up autotuner instance with the predefined setups
 tuner_svm = AutoTuner$new(
   learner = learner_svm,
-  resampling = resampling_inner_3CV,
+  resampling = resampling,
   measure = measures_tuning, 
   terminator = terminator,
   tuner = tuner
@@ -172,7 +175,7 @@ tuning_space_kknn$values
 # Set up autotuner instance with the predefined setups
 tuner_kknn = AutoTuner$new(
   learner = learner_kknn,
-  resampling = resampling_inner_3CV,
+  resampling = resampling,
   measure = measures_tuning, 
   terminator = terminator,
   tuner = tuner
