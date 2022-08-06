@@ -1,100 +1,322 @@
-# DESCRIPTIVES #################################################################
-# Preparation ==================================================================
-# Libraries --------------------------------------------------------------------
+# DESCRIPTIVES #########################################################################################################
+# Preparation ==========================================================================================================
+# Libraries ------------------------------------------------------------------------------------------------------------
 library(tidyverse)
-library(broom) # für funktion tidy
+#library(broom) # für funktion tidy
 library(data.table) # für rbindlist
+library(rcompanion) # für cramers V
+library(DiscriMiner) # for correlation ratio between numeric and categorical variable
+library(DescTools) # for pairwise calculations
 library(corrplot)
 
-# Load data --------------------------------------------------------------------
+# Load data ------------------------------------------------------------------------------------------------------------
 # load preperad dataset
 data <- readRDS("data/JuSAW_prepared.rds")
+data_pre <- readRDS("data/dataJuSAW.rds")
 
-# Load other scripts -----------------------------------------------------------
+# Load other scripts ---------------------------------------------------------------------------------------------------
 source("variable_sets.R", encoding="utf-8") # for predefined feature sets
+source("functions.R", encoding="utf-8")
 
+# Easy descriptions ####################################################################################################
+# General Vars =========================================================================================================
+# Employmentdays - dependent variable ----------------------------------------------------------------------------------
+ggplot(data, aes(x = as.factor(r_besch), fill = as.factor(r_besch))) +
+  geom_bar() +
+  geom_text(stat = "count", aes(label = ..count..), vjust = -0.5) +
+  labs(title = "Days in employment more of less than 90 in last 7 months",
+       y = "count", x = "EMPLOYMENTDAYS",
+       fill = "EMPLOYMENTDAYS") +
+  scale_x_discrete(labels = c("1" = ">=90 days", "0" = "<90 days")) +
+  theme(legend.position = "none")
+
+# Gender ---------------------------------------------------------------------------------------------------------------
+ggplot(data, aes(x = GENDER, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+ggplot(data, aes(x = GENDER, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5)) +
+  geom_text(stat = "count", aes(label = ..count..), vjust = -0.5, position = position_dodge(width = 0.5)) +
+  labs(title = "Days in employment dependent on gender")
+
+# ci_plot
+ci_plot(data, GENDER)
+# Vielleicht noch einheitliche Skala von 0 bis 1
+  
 # The effect of gender on having more than 90 days of work in 7 months
 # We would like to test for the equality of proportions of males or females
 # Η0: “Independence between gender and more than 90 workdays” vs
 # Η1: “there is association between gender and workdays”
-tab_gender <- table(data$GENDER_female, data$EMPLOYMENTDAYS)
+tab_gender <- table(data$GENDER, data$EMPLOYMENTDAYS)
 round(100*prop.table(tab_gender, 1),1)
 
 # prop.test implements the Pearson’s chi-square statistics for independence
-chisq.test(data$GENDER_female, data$EMPLOYMENTDAYS)
+b <- chisq.test(data$GENDER, data$EMPLOYMENTDAYS)
 fisher.test(tab_gender)
 
+tab_gender
+cramerV(tab_gender)
+cramerV(data$GENDER, data$EMPLOYMENTDAYS)
 
-#===============================================================================
-# Heatmap plot für alle p-values von chisquared test Variablen gegenseitig
-# Mit base heatmap() -----------------------------------------------------------
-CHIS_employ <- lapply(data[, ams], function(x) chisq.test(data[,ams[1]], x)$p.value)
-pvalues_ams_list <- rbindlist(lapply(CHIS_employ, tidy), idcol=TRUE)
+# Agegroup -------------------------------------------------------------------------------------------------------------
+ggplot(data, aes(x = AGEGROUP, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+ggplot(data, aes(x = AGEGROUP, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
 
-chis <- list()
-for(i in 2:length(ams)){
-  chis <- lapply(data[, ams], function(x) chisq.test(data[,ams[i]], x)$p.value)
-  values <- rbindlist(lapply(chis, tidy), idcol=TRUE)
-  pvalues_ams_list <- full_join(pvalues_ams_list, values, by = ".id")
-}
-pvalues_ams_mat <- column_to_rownames(pvalues_ams_list, var=".id")
-names(pvalues_ams_mat) <- ams
-pvalues_ams_heatmap <- round(as.matrix(pvalues_ams_mat),5)
-heatmap(pvalues_ams_heatmap, Colv = NA, Rowv = NA)
+ci_plot(data, AGEGROUP)
 
 
-# Mit ggplot -------------------------------------------------------------------
-CHIS_employ <- lapply(data[, ams], function(x) chisq.test(data[,ams[1]], x)$p.value)
-pvalues_ams <- rbindlist(lapply(CHIS_employ, tidy), idcol=TRUE)
-pvalues_ams <- mutate(pvalues_ams, id1 = ams[1])
+# Childcare ------------------------------------------------------------------------------------------------------------
+# Argument für childcare both?
+ggplot(data, aes(x = CHILDCARE_both, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+ggplot(data, aes(x = CHILDCARE_both, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = CHILDCARE, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+ggplot(data, aes(x = CHILDCARE, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = CHILDCARE_men, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+ggplot(data, aes(x = CHILDCARE_men, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
 
-chis <- list()
-for(i in 2:length(ams)){
-  chis <- lapply(data[, ams], function(x) chisq.test(data[,ams[i]], x)$p.value)
-  values <- rbindlist(lapply(chis, tidy), idcol=TRUE)
-  values <- mutate(values, id1 = ams[i])
-  pvalues_ams <- rbind(pvalues_ams, values)
-}
-pvalues_ams <- pvalues_ams %>%
-  rename(id2 = .id, pvalues = x) %>%
-  mutate(pvalues = round(pvalues, 3))
+# Health ---------------------------------------------------------------------------------------------------------------
+# Impariment is "yes, very"; impairment_strong is "yes, very" and "yes, little"
+ggplot(data, aes(x = IMPAIRMENT, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+ggplot(data, aes(x = IMPAIRMENT, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = IMPAIRMENT_strong, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+ggplot(data, aes(x = IMPAIRMENT_strong, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
 
-pvalues_ams$groups <- cut(pvalues_ams$pvalues,               # Add group column
-                       breaks = c(-1, 0, 0.01, 0.05, 0.1, 1))
+# Migration background -------------------------------------------------------------------------------------------------
+# Staatengruppe
+ggplot(data, aes(x = STATEGROUP, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+ggplot(data, aes(x = STATEGROUP, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
 
-ggplot(pvalues_ams, aes(id1, id2, fill = groups)) +          # Specify colors manually
-  geom_tile() +
-  scale_fill_manual(breaks = levels(pvalues_ams$groups),
-                    values = c("white", "yellow", "orange", "red", "darkred")) +
+# Religion
+table(data$relig, useNA = "always")
+ggplot(data, aes(x = relig, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+ggplot(data, aes(x = relig, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+table(data$relig2, useNA = "always") # Wie wichtig ist Religion
+
+# Variable Isalm und other
+data$relig_islam <- as.factor(ifelse(data$relig == "Islam", "Islam", "other"))
+ggplot(data, aes(x = relig_islam, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = relig_islam, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+
+
+ci_plot(data, STATEGROUP)
+ci_plot(data, relig) +
   theme(axis.title.x=element_blank(),axis.title.y=element_blank(),
         axis.text.x = element_text(angle = 70, vjust = 1, hjust=1))
 
-# Mit Corrplot -----------------------------------------------------------------
-testRes = cor.mtest(mtcars, conf.level = 0.95)
 
-## specialized the insignificant value according to the significant level
-corrplot(M, p.mat = testRes$p, sig.level = 0.10, order = 'hclust', addrect = 2)
+# RGS Typ --------------------------------------------------------------------------------------------------------------
+ggplot(data, aes(x = RGS, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = RGS, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+# Lustigerweise genau andersrum, je schlechter das Bezirk desto mehr Leute mit über 90 Tagen
+# voll die unnötige Variable
 
-# ==============================================================================
-# Heatmap plot für alle Anteile je Variablenkategorie an denen die >90 Tage haben
-ams_freq <- data %>%
-  group_by_at(vars(one_of(c(ams[2], ams[1])))) %>%
-  summarise(n = n()) %>%
-  mutate(freq = n/sum(n)) %>%
-  filter(EMPLOYMENTDAYS == ">=90 Tage") %>%
-  select(1,3,4) %>%
-  rename(characteristic = 1)
 
-for(i in 3:length(ams)){
-  ams_freq_new <- data %>%
-    group_by_at(vars(one_of(c(ams[i], ams[1])))) %>%
-    summarise(n = n()) %>%
-    mutate(freq = n/sum(n)) %>%
-    filter(EMPLOYMENTDAYS == ">=90 Tage") %>%
-    select(1,3,4) %>%
-    rename(characteristic = 1)
-  ams_freq <- rbind(ams_freq, ams_freq_new)
-}
+# Hard Skills ==========================================================================================================
+# Education ------------------------------------------------------------------------------------------------------------
+# Grade German
+table(data$notede, useNA = "always") # Schulnote letztes Zeugnis: Deutsch
+ggplot(data, aes(x = as.factor(notede), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = as.factor(notede), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
 
-ggplot(ams_freq, aes(x = characteristic, y = freq)) +
-  geom_bar()
+# Grade Maths
+table(data$notema, useNA = "always") # Schulnote letztes Zeugnis: Mathematik
+ggplot(data, aes(x = as.factor(notema), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = as.factor(notema), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+
+# Education
+ggplot(data, aes(x = EDUCATION, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = EDUCATION, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+# korreliert eindeutig
+
+# Ability --------------------------------------------------------------------------------------------------------------
+ggplot(data, aes(x = EMPLOYMENTDAYS, y = ability)) +
+  geom_boxplot()
+
+# Einzelne Aufgaben?
+
+# Job ------------------------------------------------------------------------------------------------------------------
+# Occupationgroup
+ggplot(data, aes(x = OCCUPATIONGROUP_all, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = OCCUPATIONGROUP_all, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+ggplot(data, aes(x = OCCUPATIONGROUP, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = OCCUPATIONGROUP, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+
+# Employmenthistory
+ggplot(data, aes(x = EMPLOYMENTHIST, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = EMPLOYMENTHIST, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+
+# Unemployment history
+ggplot(data, aes(x = ALexp, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = ALexp, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+
+# Businesscase duration
+ggplot(data, aes(x = BUSINESSCASEDUR, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = BUSINESSCASEDUR, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+
+# Businesscase frequency
+ggplot(data, aes(x = BUSINESSCASEFREQ, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = BUSINESSCASEFREQ, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+
+# Supportmeasures
+ggplot(data, aes(x = SUPPORTMEASURE, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = SUPPORTMEASURE, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+
+# Soft Skilss ==========================================================================================================
+# Jobattributpräferenz -------------------------------------------------------------------------------------------------
+# Motivation
+ggplot(data, aes(x = EMPLOYMENTDAYS, y = intrins)) +
+  geom_boxplot()
+ggplot(data, aes(x = EMPLOYMENTDAYS, y = extrins)) +
+  geom_boxplot()
+ggplot(data, aes(x = EMPLOYMENTDAYS, y = intrins_min_extrins)) +
+  geom_boxplot()
+
+# Preferred working hours
+ggplot(data, aes(x = prefcat, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = prefcat, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+
+
+# Personality ----------------------------------------------------------------------------------------------------------
+# Depressionrisk
+ggplot(data, aes(x = as.factor(depressrisk_WHO), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = as.factor(depressrisk_WHO), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+
+# Behavior ---------------------------------------------------------------------
+# Time structure ---------------------------------------------------------------
+# Social -----------------------------------------------------------------------
+# Relationships ----------------------------------------------------------------
+
+
+# Other descriptives ###################################################################################################
+# AMS ------------------------------------------------------------------------------------------------------------------
+cramerv_ams <- DescTools::PairApply(data[, c(ams[-length(ams)], "SUPPORTMEASURE_order")], DescTools::CramerV)
+#cramerv_ams <- DescTools::PairApply(data[, ams], DescTools::CramerV)
+
+# Versteh nicht warum das nicht in dem pairwise funktioniert
+cramerV(data$EMPLOYMENTDAYS, data$SUPPORTMEASURE)
+
+corrplot(cramerv_ams, is.corr = F, diag = F, type = 'lower',  col.lim = c(0, 1),  method = 'color',  tl.col = 'black'
+         , addCoef.col = 'grey50', number.cex = 0.8, tl.srt = 45, na.label = "NA"
+         #,order = 'hclust'
+         )
+
+# AMS ext ------------------------------------------------------------------------------------------------------------
+cramerv_ams_ext <- DescTools::PairApply(data[, ams_ext], DescTools::CramerV)
+
+corrplot(cramerv_ams_ext, is.corr = F, diag = F, type = 'lower',  col.lim = c(0, 1),  method = 'color',  tl.col = 'black'
+         , addCoef.col = 'grey50', number.cex = 0.8, tl.srt = 45, na.label = "NA"
+         #,order = 'hclust'
+         )
+
+
+# AMS youth ------------------------------------------------------------------------------------------------------------
+cramerv_ams_youth <- DescTools::PairApply(data[, c(ams_youth[-length(ams_youth)], "SUPPORTMEASURE_order")], DescTools::CramerV)
+
+corrplot(cramerv_ams_youth, is.corr = F, diag = F, type = 'lower',  col.lim = c(0, 1),  method = 'color',  tl.col = 'black'
+         , addCoef.col = 'grey50', number.cex = 0.8, tl.srt = 45, na.label = "NA"
+         #,order = 'hclust'
+         )
+
+
+# Green ----------------------------------------------------------------------------------------------------------------
+str(data[,green_big])
+green_big_num <- dplyr::select_if(data[,green_big], is.numeric)
+green_big_cat <- dplyr::select_if(data[,green_big], is.factor)
+cor_greenbig_num <- cor(green_big_num,use = "pairwise.complete.obs") 
+cramerv_greenbig_cat <- DescTools::PairApply(green_big_cat, DescTools::CramerV)
+
+# Categorical
+corrplot(cramerv_greenbig_cat, is.corr = F, diag = F, type = 'lower',  col.lim = c(0, 1),  method = 'color',  tl.col = 'black'
+         , tl.srt = 45, na.label = "NA"
+         #, number.cex = 0.6, , addCoef.col = 'grey50'
+         )
+
+# Numeric
+corrplot(cor_greenbig_num, method = 'color', diag = F, type = 'lower', tl.col = 'black'
+         , tl.srt = 45, na.label = "NA" #, order = 'hclust'
+         #,addCoef.col = 'grey50', number.cex = 0.5
+         )
+
+str(data[,green])
+green_num <- dplyr::select_if(data[,green], is.numeric)
+green_cat <- dplyr::select_if(data[,green], is.factor)
+cor_green_num <- cor(green_num,use = "pairwise.complete.obs") 
+cramerv_green_cat <- DescTools::PairApply(green_cat, DescTools::CramerV)
+
+corrplot(cramerv_green_cat, is.corr = F, diag = F, type = 'lower',  col.lim = c(0, 1),  method = 'color',  tl.col = 'black'
+         , addCoef.col = 'grey50', number.cex = 0.7, tl.srt = 45, na.label = "NA")
+corrplot(cor_green_num, method = 'color', diag = F, type = 'lower', tl.col = 'black',
+         addCoef.col = 'grey50', number.cex = 1, tl.srt = 45, na.label = "NA", order = 'hclust')
+
+# All vars -------------------------------------------------------------------------------------------------------------
+str(data[,all])
+all_num <- dplyr::select_if(data[,all], is.numeric)
+all_cat <- dplyr::select_if(data[,all], is.factor) %>%
+  select(-socialmeet) # ist aus irgendeinem Grund NA
+cor_all_num <- cor(all_num, use = "pairwise.complete.obs") 
+cramerv_all_cat <- DescTools::PairApply(all_cat, DescTools::CramerV)
+
+corrplot(cramerv_all_cat, is.corr = F, diag = F, type = 'lower',  col.lim = c(0, 1),  method = 'color',  tl.col = 'black'
+         , tl.srt = 45, na.label = "NA", number.cex = 0.3
+         #,order = 'hclust' , addCoef.col = 'grey50', 
+)
+corrplot(cor_all_num, method = 'color', diag = F, type = 'lower', tl.col = 'black'
+         , tl.srt = 45, na.label = "NA" #, order = 'hclust'
+         #,addCoef.col = 'grey50', number.cex = 0.5
+)
+
+
+
+# RESTE ################################################################################################################
+corrplot(cramerv, is.corr = F)
+# eher wenig correlation, vielleicht ohne diag besser
+corrplot(cramerv, diag = F,is.corr = F, type = 'lower', method = 'square', col.lim = c(0, 1), addCoef.col = 'grey50')
+corrplot(cramerv, diag = F,is.corr = F, type = 'lower', method = 'color' , col.lim = c(0, 1), addgrid.col = 'white')
+corrplot(cramerv, diag = F,is.corr = F, type = 'lower', method = 'shade', addCoef.col = 'black', number.cex = 0.8,
+         tl.col = 'black', tl.srt = 45, cl.ratio = 0.2, na.label = "NA")
+corrplot(cramerv, diag = F,is.corr = F, order = 'hclust', addrect = 4)
+
+corrplot.mixed(cramerv)
