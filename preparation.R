@@ -7,6 +7,7 @@ library(psych) # for function describe
 library(corrplot) # use corrplot(cor(...)) for nice correlation plots
 library(writexl)
 library(DataExplorer)
+library(janitor)
 
 # Load data --------------------------------------------------------------------
 data <- readRDS("data/dataJuSAW.rds")
@@ -39,17 +40,10 @@ describe(data[,numeric.only])
 #   skimr::skim(dest, carrier) 
 
 
-# Variable exploration =========================================================
+# Variable exploration =================================================================================================
 
-# Klarstellungen
-
-
-# To Dos
-# Korrelationsmatrix mit Job?
-
-
-# General ======================================================================
-# Abhängige Variable kurzfristiges Kriterium -----------------------------------
+# General ==============================================================================================================
+# Abhängige Variable kurzfristiges Kriterium ---------------------------------------------------------------------------
 # innerhalb von 7 Monaten nach "Meilenstein" insgesamt 90 Tage in ungeförderter Beschäftigung stehend (1), sonst (0)
 table(data$r_besch)
 data$EMPLOYMENTDAYS <- factor(data$r_besch, levels = c(0, 1), labels = c("<90 Days", ">=90 Days"), ordered = FALSE)
@@ -65,24 +59,16 @@ table(data$ams_t1) # Derzeitiger Status: beim AMS gemeldet?
 table(data$month_of_interview) # Monat erstes Interview?
 table(data$month_of_interview_t1) # Monat zweites Interview ca. ein Jahr später
 
-# Altersgruppe entfällt, da alle unter 30 --------------------------------------
+# Agegroup -------------------------------------------------------------------------------------------------------------
 # the characteristic AGE GROUP is redefined: less than 20 years (0), 20 to 24 years (20).
 table(data$ageg, useNA = "always")
 data$AGEGROUP <- factor(data$ageg)
 table(data$AGEGROUP)
-ggplot(data, aes(x = AGEGROUP, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
-ggplot(data, aes(x = AGEGROUP, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
 
-# GESCHLECHT_WEIBLICH: Geschlecht weiblich, mit 0= männlich, 1=weiblich --------
+# GESCHLECHT_WEIBLICH: Geschlecht weiblich, mit 0= männlich, 1=weiblich ------------------------------------------------
 table(data$r_geschlecht, useNA = "always")
 table(data$female, data$r_geschlecht) # lieber female verwenden, hat weniger missings
 data$GENDER <- factor(data$female, levels = c("0", "1"), labels = c("male", "female"), ordered = FALSE)
-ggplot(data, aes(x = GENDER, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
-ggplot(data, aes(x = GENDER, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
 
 # Children ---------------------------------------------------------------------
 # Betreuungspflichten (nur für Frauen)
@@ -106,21 +92,7 @@ table(data$CHILDCARE, data$GENDER)
 table(data$CHILDCARE_men, data$GENDER)
 table(data$CHILDCARE_both, data$GENDER)
 
-# Argument für childcare both?
-ggplot(data, aes(x = CHILDCARE_both, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
-ggplot(data, aes(x = CHILDCARE_both, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-ggplot(data, aes(x = CHILDCARE, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
-ggplot(data, aes(x = CHILDCARE, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-ggplot(data, aes(x = CHILDCARE_men, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
-ggplot(data, aes(x = CHILDCARE_men, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-
-# Health -----------------------------------------------------------------------
+# Health ---------------------------------------------------------------------------------------------------------------
 # Beeinträchtigt
 table(data$shealth, useNA = "always") # Wie schätzen Sie Ihren allgemeinen Gesundheitszustand ein?
 table(data$lhealth, useNA = "always") # wahrscheinlich beste Wahl - # Werden Sie bei Ihren täglichen Aktivitäten in irgendeiner Weise von einer längeren Krankheit oder einer Behinderung beeinträchtigt?
@@ -147,12 +119,9 @@ table(data$IMPAIRMENT_order, data$lhealth, useNA = "always")
 table(data$IMPAIRMENT, data$IMPAIRMENT_order, useNA = "always")
 table(data$IMPAIRMENT_strong, useNA = "always")
 #data <- subset(data, !is.na(IMPAIRMENT))
-ggplot(data, aes(x = IMPAIRMENT, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
-ggplot(data, aes(x = IMPAIRMENT, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
 
-# Migration background ---------------------------------------------------------
+
+# Migration background -------------------------------------------------------------------------------------------------
 table(data$birthAT, useNA = "always")
 table(data$birthAT_v, useNA = "always") # Vater: Geburtsland Österreich
 table(data$birthAT_m, useNA = "always") # Mutter: Geburtsland Österreich
@@ -177,19 +146,6 @@ table(data$r_staatengruppe, useNA = "always")
 data$STATEGROUP <- factor(data$r_staatengruppe, levels = c("AUT", "DRITT", "EU"), 
                           labels =  c("AUT", "DRITT", "EU"), ordered = FALSE)
 table(data$STATEGROUP, useNA = "always")
-ggplot(data, aes(x = STATEGROUP, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
-ggplot(data, aes(x = STATEGROUP, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-
-
-# Religion
-table(data$relig, useNA = "always")
-ggplot(data, aes(x = relig, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
-ggplot(data, aes(x = relig, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-table(data$relig2, useNA = "always") # Wie wichtig ist Religion
 
 # Variable Isalm und other
 data$relig_islam <- as.factor(ifelse(data$relig == "Islam", "Islam", "other"))
@@ -198,16 +154,10 @@ ggplot(data, aes(x = relig_islam, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)
 ggplot(data, aes(x = relig_islam, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = "fill")
 
-# RGS Typ ----------------------------------------------------------------------
+# RGS Typ --------------------------------------------------------------------------------------------------------------
 table(data$r_rgstyp, useNA = "always") # wenn education !is.na dann passt das hier auch
-data$RGS <-factor(data$r_rgstyp, levels = c("1", "2", "3", "4"), labels =  c("1", "2", "3", "4"), ordered = FALSE)
+data$RGS <-factor(data$r_rgstyp, levels = c("1", "2", "3", "4"), labels =  c("1", "2", "3", "4"), ordered = TRUE)
 table(data$RGS, useNA = "always")
-ggplot(data, aes(x = RGS, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-ggplot(data, aes(x = RGS, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
-# Lustigerweise genau andersrum, je schlechter das Bezirk desto mehr Leute mit über 90 Tagen
-# voll die unnötige Variable
 
 # RGS Typ 1 auslassen, da es nur einmal/zweimal vorkommt/ oder zu 2 hinzutun?
 #data <- subset(data, !is.na(RGS))
@@ -215,23 +165,14 @@ data[data$RGS==1 & !is.na(data$RGS),"RGS"] <- 2
 #data$RGS <- relevel(data$RGS, ref = "1")
 
 
-# Hard Skills ==================================================================
-# Education --------------------------------------------------------------------
+# Hard Skills ==========================================================================================================
+# Education ------------------------------------------------------------------------------------------------------------
 table(data$ausb_t1, useNA = "always")
 table(data$eduhöchst4, useNA = "always")
 table(data$eduhöchst4,data$eduhöchst4_t1, useNA = "always")
 
 table(data$notede, useNA = "always") # Schulnote letztes Zeugnis: Deutsch
-ggplot(data, aes(x = as.factor(notede), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-ggplot(data, aes(x = as.factor(notede), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
-
 table(data$notema, useNA = "always") # Schulnote letztes Zeugnis: Mathematik
-ggplot(data, aes(x = as.factor(notema), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-ggplot(data, aes(x = as.factor(notema), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
 # Beides nicht so eindeutig korreliert
 
 table(data$elternschulint, useNA = "always")
@@ -255,13 +196,8 @@ data$EDUCATION <- factor(data$r_ausbildung, levels = c("L", "M", "P"), labels = 
 data$EDUCATION <- relevel(data$EDUCATION, ref = "P")
 #data <- subset(data, !is.na(EDUCATION))
 table(data$EDUCATION, useNA = "always")
-ggplot(data, aes(x = EDUCATION, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-ggplot(data, aes(x = EDUCATION, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
-# korreliert eindeutig
 
-# Ability ----------------------------------------------------------------------
+# Ability --------------------------------------------------------------------------------------------------------------
 table(data$SDT, useNA = "always")  # Symbol Zahlen Test  
 # Geht eigentlich nur bis 10, wo kommt die 11 her???
 data[data$SDT == 11, "SDT"] <- 10
@@ -291,6 +227,8 @@ table(cut(data$drecall, 4))
 data$drecall_grouped <- as.numeric(cut(data$drecall, 4))
 
 table(data$rechnencorr1, useNA = "always") # Rechenaufgabe I: Kosten
+data$rechnencorr1 <- as.factor(data$rechnencorr1)
+data$rechnencorr2 <- as.factor(data$rechnencorr2)
 ggplot(data, aes(x = rechnencorr1, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = position_dodge(width = 0.5))
 ggplot(data, aes(x = rechnencorr1, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
@@ -302,6 +240,8 @@ ggplot(data, aes(x = rechnencorr2, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS
   geom_bar(position = "fill")
 
 table(data$kast1corra, useNA = "always") # 1. Kästchentest
+data$kast1corra <- as.factor(data$kast1corra)
+data$kast2corra <- as.factor(data$kast2corra)
 ggplot(data, aes(x = as.factor(kast1corra), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = position_dodge(width = 0.5))
 ggplot(data, aes(x = as.factor(kast1corra), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
@@ -315,13 +255,14 @@ ggplot(data, aes(x = as.factor(kast2corra), group = EMPLOYMENTDAYS, fill = EMPLO
 
 # Ability Variable Zusammenfassung? Für alle aufgaben gleiche Punktzahl - 8 Aufgaben gesamt
 data$ability <- data$SDT_grouped +data$tiere_no_grouped + data$drecall_grouped + data$drecall_grouped + 
-  4*data$rechnencorr1 + 4*data$rechnencorr2 + 4*data$kast1corra + 4*data$kast2corra
+  4*as.numeric(data$rechnencorr1) + 4*as.numeric(data$rechnencorr2) + 
+  4*as.numeric(data$kast1corra) + 4*as.numeric(data$kast2corra)
 table(data$ability, useNA = "always")
 ggplot(data, aes(x = EMPLOYMENTDAYS, y = ability)) +
   geom_boxplot()
 # Aufteilen in Mathe und sonstige Aufgaben?
 
-# Job --------------------------------------------------------------------------
+# Job ------------------------------------------------------------------------------------------------------------------
 # Berufsgruppe Produktion oder Service
 table(data$r_berufsgruppe_ams1, useNA = "always")
 table(data$r_berufsgruppe, useNA = "always")
@@ -329,25 +270,12 @@ table(data$r_berufsgruppe_ams1, data$r_berufsgruppe, useNA = "always") # Was ist
 data$OCCUPATIONGROUP_all <- factor(data$r_berufsgruppe_ams1, ordered = FALSE)
 data$OCCUPATIONGROUP <- factor(data$r_berufsgruppe, ordered = FALSE)
 
-# Add Label
-ggplot(data, aes(x = OCCUPATIONGROUP_all, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-ggplot(data, aes(x = OCCUPATIONGROUP_all, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
-ggplot(data, aes(x = OCCUPATIONGROUP, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-ggplot(data, aes(x = OCCUPATIONGROUP, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
-
 # Beschäftigungsverlauf
 # BESCHÄFTIGUNGSVERLAUF: Beschäftigungsverlauf vor AL
 table(data$r_beschverl_voral, useNA = "always")
 data$EMPLOYMENTHIST <- factor(data$r_beschverl_voral, levels = c(1, 2), labels = c(">75%", "<75%"), ordered = FALSE)
 table(data$EMPLOYMENTHIST, useNA = "always")
-ggplot(data, aes(x = EMPLOYMENTHIST, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-ggplot(data, aes(x = EMPLOYMENTHIST, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
+
 
 table(data$r_monate_erw_j1voral, useNA = "always")
 table(data$r_monate_erw_j2voral, useNA = "always")
@@ -356,10 +284,6 @@ table(data$r_monate_erw_j4voral, useNA = "always")
 
 # Unemployment experience
 table(data$ALexp, useNA = "always") # Vielleicht das statt EMPLOYMENT?
-ggplot(data, aes(x = ALexp, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-ggplot(data, aes(x = ALexp, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
 table(data$exp, useNA = "always") #  Erwerbstätigkeit Lifetime Gesamtdauer - Summe aus Jahren und Monaten Erfahrung - in Jahren
 
 # Geschäftsfalldauer
@@ -368,10 +292,7 @@ table(data$r_geschfalldau_voral, useNA = "always")
 table(data$r_geschfalldau3m_voral, useNA = "always")
 data$BUSINESSCASEDUR <- factor(data$r_geschfalldau_voral, levels = c(0, 1), 
                                labels = c("kein GF>=180", "GF>=180"), ordered = FALSE)
-ggplot(data, aes(x = BUSINESSCASEDUR, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-ggplot(data, aes(x = BUSINESSCASEDUR, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
+
 
 table(data$r_geschaeftsfall_j1voral, useNA = "always")
 table(data$r_geschaeftsfall_j2voral, useNA = "always")
@@ -383,10 +304,6 @@ table(data$r_geschfallfreq_voral, useNA = "always")
 data$BUSINESSCASEFREQ <- factor(data$r_geschfallfreq_voral)
 data$BUSINESSCASEFREQ_order <- factor(data$r_geschfallfreq_voral, levels = c(0, 1, 2, 3),  ordered = TRUE)
 table(data$BUSINESSCASEFREQ_order)
-ggplot(data, aes(x = BUSINESSCASEFREQ, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-ggplot(data, aes(x = BUSINESSCASEFREQ, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
 
 # Maßnahmenteilnahme
 table(data$r_maßnahmenteilnahme, useNA = "always")
@@ -395,12 +312,9 @@ data$SUPPORTMEASURE <- factor(data$r_maßnahmenteilnahme, levels = c(0, 1, 2, 3)
 data$SUPPORTMEASURE_order <- factor(data$SUPPORTMEASURE, ordered = TRUE)
 table(data$SUPPORTMEASURE_order)
 is.ordered(data$SUPPORTMEASURE_order)
-ggplot(data, aes(x = SUPPORTMEASURE, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = position_dodge(width = 0.5))
-ggplot(data, aes(x = SUPPORTMEASURE, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill")
 
-# Letzter Job Charakteristika --------------------------------------------------
+
+# Letzter Job Charakteristika ------------------------------------------------------------------------------------------
 # What job was the last job and what contract?
 table(data$statuslastjob, useNA = "always")
 table(data$angest_level_l, useNA = "always") 
@@ -432,7 +346,7 @@ table(data$endlastjob_t1, useNA = "always")
 table(data$endreason, useNA = "always") # Zusammenfassung
 
 
-# Next job -----------------------------------------------------------------------------------------
+# Next job -------------------------------------------------------------------------------------------------------------
 table(data$zusage, useNA = "always") #!!! Genauer analysiern, eventuell alle mit Zusage rausnehmen
 table(data$zusage_t1, useNA = "always")
 table(data$zusage, data$EMPLOYMENTDAYS, useNA = "always")
@@ -448,7 +362,7 @@ table(data$suchintens, useNA = "always")
 ggplot(data, aes(x = EMPLOYMENTDAYS, y = suchintens)) +
   geom_boxplot() # hätte aber eigentlich korrelation...
 
-# Soft Skilss ==================================================================
+# Soft Skilss ==========================================================================================================
 # Jobattributpräferenz ---------------------------------------------------------
 # Motivation
 table(data$effortmot, useNA = "always")
@@ -540,7 +454,7 @@ ggplot(data, aes(x = EMPLOYMENTDAYS, y = reserve)) +
   geom_boxplot()
 table(data$reserveDK, useNA = "always") # Don't know
 
-# Personality ------------------------------------------------------------------
+# Personality ----------------------------------------------------------------------------------------------------------
 # Selbstwert
 table(data$sw_träumer, useNA = "always") 
 ggplot(data, aes(x = sw_träumer, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
@@ -604,14 +518,16 @@ ggplot(data, aes(x = EMPLOYMENTDAYS, y = depress)) +
 table(data$depress_WHO, useNA = "always") # Sumenindex wie depress, auf einer anderen Skala 0-36
 table(data$depress10_WHO, useNA = "always") # 0 to 10
 table(data$depressrisk_WHO, useNA = "always") # Indikator für Risiko wenn depress_WHO >18
-ggplot(data, aes(x = as.factor(depressrisk_WHO), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+data$depressrisk_WHO <- as.factor(data$depressrisk_WHO)
+data$depressrisk_WHO_t1 <- as.factor(data$depressrisk_WHO_t1)
+ggplot(data, aes(x = depressrisk_WHO, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = position_dodge(width = 0.5))
-ggplot(data, aes(x = as.factor(depressrisk_WHO), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+ggplot(data, aes(x = depressrisk_WHO, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = "fill")
 
 data$depress_d # Differenz Summenindex Welle2-Welle 1, N=584 nur vollständige Angaben
 
-# Behavior ---------------------------------------------------------------------
+# Behavior -------------------------------------------------------------------------------------------------------------
 table(data$alkohol, useNA = "always")
 ggplot(data, aes(x = alkohol, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = position_dodge(width = 0.5))
@@ -662,7 +578,7 @@ ggplot(data, aes(x = fz_lesen, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
 ggplot(data, aes(x = fz_lesen, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = "fill")
 
-# Time structure ---------------------------------------------------------------
+# Time structure -------------------------------------------------------------------------------------------------------
 # nochmal nachschauen was das jahoda zeug ist und was ist das p - p heißt vergangen
 # Alles t1 mit sher vielen missings -> unwichtig für mich
 table(data$jahoda_timestruc_aufst, useNA = "always")
@@ -692,7 +608,7 @@ table(data$jahoda_finanz1_p, useNA = "always")
 table(data$jahoda_finanz2_p, useNA = "always")
 table(data$jahoda_finanz_p, useNA = "always")
 
-# Social -----------------------------------------------------------------------
+# Social ---------------------------------------------------------------------------------------------------------------
 table(data$socialmeet, useNA = "always")
 table(data$socialcomp, useNA = "always") # Wenn Sie sich mit Gleichaltrigen vergleichen, wie oft nehmen Sie an geselligen Ereignissen oder Treffen teil?
 ggplot(data, aes(x = socialcomp, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
@@ -734,7 +650,7 @@ table(data$diskrim_phy, useNA = "always")
 table(data$diskrim_other, useNA = "always")
 table(data$ges_status, useNA = "always") # Gesellschaftlicher Status - Position in Hierarchie
 
-# Relationships ----------------------------------------------------------------
+# Relationships --------------------------------------------------------------------------------------------------------
 # Relationship
 table(data$beziehung, useNA = "always")
 
@@ -774,6 +690,8 @@ table(data$varbeitwichtig, useNA = "always")
 table(data$marbeitgerne, useNA = "always")
 table(data$marbeitwichtig, useNA = "always")
 table(data$arbeitswerte_elt, useNA = "always")
+data$arbeitswerte_elt0 <- ifelse(is.na(data$arbeitswerte_elt), 0, data$arbeitswerte_elt)
+table(data$arbeitswerte_elt0, useNA = "always")
 ggplot(data, aes(x = EMPLOYMENTDAYS, y = arbeitswerte_elt)) +
   geom_boxplot()
 
@@ -802,11 +720,14 @@ table(data$hhsize, useNA = "always")
 
 
 
-# Save dataset =================================================================
-saveRDS(data, "data/JuSAW_prepared.rds")
+# Save dataset =========================================================================================================
+data_clean <- janitor::clean_names(data)
 
-# RESTE ########################################################################
-# t0-t1 Plot Barplott ----------------------------------------------------------
+saveRDS(data, "data/JuSAW_prepared.rds")
+saveRDS(data_clean, "data/JuSAW_prepared_clean.rds")
+
+# RESTE ################################################################################################################
+# t0-t1 Plot Barplott --------------------------------------------------------------------------------------------------
 table(lottery)
 table(lottery_t1)
 
