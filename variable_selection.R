@@ -46,12 +46,22 @@ mlr_filters
 filter_all = c("disr", "cmim", "jmi", "jmim", "mim", "mrmr", "njmim", "relief")
 
 filter_used = lapply(filter_all, flt)
-lapply(filter_used, function(i) i$calculate(task_green_big))
+lapply(filter_used, function(i) i$calculate(task_all))
 filter_scores = lapply(filter_used, as.data.table)
+features_15 = lapply(filter_scores, function(i) i$feature[1:15])
+names(features_15) = filter_all
 features_50 = lapply(filter_scores, function(i) i$feature[1:50])
-filter_features = Reduce(intersect, features_50)
+names(features_50) = filter_all
+filter_features = Reduce(intersect, features_50[1:7])
+filter_features_disr = features_15$disr
+filter_features_cmim = features_15$cmim
+filter_features_relief = features_15$relief
 
-#write(filter_features, file = "filter_features.txt")
+#write(filter_features, file = "filter_features_all.txt")
+write(filter_features_disr, file = "filter_features_disr.txt")
+write(filter_features_cmim, file = "filter_features_cmim.txt")
+write(filter_features_relief, file = "filter_features_relief.txt")
+
 
 # filter = flt("relief")
 # filter$calculate(task_green_big)
