@@ -2,34 +2,44 @@
 # Preparation ==========================================================================================================
 # Libraries ------------------------------------------------------------------------------------------------------------
 library(tidyverse)
-library(broom) # für funktion tidy
+#library(broom) # für funktion tidy
 library(data.table) # für rbindlist
 #library(modelr)
-library(mlr3verse) # machine learning set-up for modeling
+library(mlr3verse) # machine learning set-up for modeling # , options(mlr3.allow_utf8_names = TRUE)
 #library(ranger) # Random Forest
 library(mlr3fairness)
-library(DALEX)
-library(DALEXtra)
-library(fairmodels)
+#library(DALEX)
+#library(DALEXtra)
+#library(fairmodels)
 set.seed(42)
-# set.seed(42, "L'Ecuyer")
+#set.seed(42, "L'Ecuyer-CMRG")
+
+progressr::handlers(global = TRUE) # for progress bars
+progressr::handlers("progress")
+
+# runs the outer loop sequentially and the inner loop in parallel
+#future::plan(list("multisession"))
+# future::plan("multiprocess")
 
 # Load other scripts ---------------------------------------------------------------------------------------------------
 source("tasks.R", encoding="utf-8") # for predefined feature sets
 source("learners.R", encoding="utf-8") # for predefined feature sets
 
-data_test = data[test_ids,]
-#setequal(data_test$EMPLOYMENTDAYS, df3$truth)
-data_test$test_ids = test_ids
 
 # Set-up modeling ======================================================================================================
 # Tasks ----------------------------------------------------------------------------------------------------------------
-tasks = list(task_ams_youth
-          , task_ams
-          , task_ams_ext
-          , task_green
-          #, task_filtering
-          )
+tasks = list(#task_ams_youth
+             #task_ams
+             #task_ams_ext
+             #task_green
+              # task_green_big
+             #task_filtering_green
+             #task_filtering_all
+             # task_all
+             #task_filtering_disr
+              #task_filtering_cmim
+              task_filtering_relief
+             )
 
 # Evaluation measures (use msrs() to get a list of all measures --------------------------------------------------------
 performance_measures = msrs(c("classif.acc"
@@ -152,9 +162,14 @@ execute_start_time <- Sys.time()
 bmr = benchmark(grid, store_models = TRUE)
 evaluation_time <- Sys.time() - execute_start_time 
 rm(execute_start_time)
+evaluation_time
 
 # Evaluation ===========================================================================================================
 print(bmr)
+
+saveRDS(bmr, "models/bmr_AllFilterRelief_RS1000_acc.Rds")
+#bmr_ams = readRDS("models/bmr_ams_youth.Rds")
+
 
 # set threshold before calculating measures!!
 #bmr$aggregate()[,resample_result]$predictions()$set_threshold(0.66)
@@ -167,158 +182,6 @@ bmr$score(c(performance_measures, fairness_measures_diff))
 bmr$score(group_measures)
 
 
-# Make data table from benchmark result for further evaluation _________________________________________________________
-tab_bmr <- as.data.table(bmr)
-
-# Get selected feature sets --------------------------------------------------------------------------------------------
-
-mlr3misc::map(as.data.table(bmr)$learner, "model")
-
-tab_bmr$learner[[26]]$model$learner$importance()
-tab_bmr$learner[[25]]$model$learner$selected_features()
-
-# Selected Features for regularized models
-# GLMnet
-# GLM with Elastic Net Regularization Classification Learner
-#graph_glmnet$selected_features(lambda = NULL)
-
-# Decision Tree
-
-# Random Forest
-
-# Variable Importance:
-# xgboost
-#LearnerClassifXgboost$importance()
-
-# Ranger
-#LearnerClassifRanger$importance()
-tuner_ranger$archive
-
-# Decision Tree
-#LearnerClassifRpart$importance()
-
-
-# Set threshold to 66% as in the ams paper -----------------------------------------------------------------------------
-lapply(tab_bmr$prediction, function(i) i$set_threshold(0.66))
-
-# Make Dataframes with all predictions + Documentation OR predictions ==================================================
-# Predict AMS doc ------------------------------------------------------------------------------------------------------
-# AMS full _____________________________________________________________________________________________________________
-f_ams <- as.formula(paste("EMPLOYMENTDAYS", paste(ams[-1], collapse = "+"), sep = "~"))
-model_ams_OR <- glm(f_ams, family = "binomial", data = data)
-summary(model_ams_OR)
-OR_coefs <- c(0.48, -0.05, 0.0, 0.0, -0.01, 0.04, 0.10, 0.03, -0.08, # RGS-Typ 2: -0.10, 
-              -0.16, -0.10, -0.33, 0.07, -0.31, 0.20, 0.36, 0.63, -0.21, -0.19, -0.03)
-names(OR_coefs) <- names(model_ams_OR$coefficients)
-model_ams_OR$coefficients <- OR_coefs
-
-# Predictions 
-ams_full_OR <- predict(model_ams_OR, data_test, type="response")
-
-
-# AMS youth ____________________________________________________________________________________________________________
-f_ams_youth <- as.formula(paste("EMPLOYMENTDAYS", paste(ams_youth[-1], collapse = "+"), sep = "~"))
-model_ams_OR_youth <- glm(f_ams_youth, family = "binomial", data = data)
-summary(model_ams_OR_youth)
-OR_coefs_youth <- c(-0.13, 0.09, 0.13, 0.00 # Altersgruppe 25-28, sollte ich wahrscheinilch noch rausnehemn
-                    ,0.48, 0.40, -0.46, -0.17, -0.15, 
-                    -0.36, -0.03, 0.01, -0.02, -0.06, -0.21, -0.14)
-names(OR_coefs_youth) <- names(model_ams_OR_youth$coefficients)
-model_ams_OR_youth$coefficients <- OR_coefs_youth
-
-# Predictions 
-ams_youth_OR <- predict(model_ams_OR_youth, data_test, type="response")
-
-
-# Dataframes with predictions ------------------------------------------------------------------------------------------
-# Get model and task namelist combination for the following computations
-task_ids = lapply(tab_bmr$task, function(i) i$id)
-learner_ids = lapply(tab_bmr$learner, function(i) i$id)
-task_learner_ids = paste(task_ids, learner_ids, sep=", ")
-
-# Predcitions for all models
-prediction_list = tab_bmr$prediction
-names(prediction_list) <- task_learner_ids
-
-# Dataframe variant 2 __________________________________________________________________________________________________
-df2 = data.frame(task = unlist(task_ids))
-df2 = expand(df2, task, test_ids) # sollte tasks Anzahl mal test rows sein
-
-#truth = data.frame(test_ids = test_ids, truth = prediction_list[[2]]$truth)
-df2 = full_join(df2, data_test, by = "test_ids")
-df2$truth_01 <- as.factor(ifelse(df2$EMPLOYMENTDAYS == '>=90 Days', 1, 0))
-
-probs = lapply(prediction_list, function(i) i$prob[,1])
-probs = as.data.frame(do.call(cbind, probs))
-
-df_list = list()
-for(i in unique(unlist(task_ids))){
-  probs_task = probs[str_subset(names(probs), i)]
-  names(probs_task) = unique(unlist(learner_ids))
-  df_list = append(df_list, list(probs_task))
-}
-names(df_list) = unique(unlist(task_ids))
-
-for(i in 1:length(unique(unlist(task_ids)))){
-  df_list[[i]] = mutate(df_list[[i]], task = unique(unlist(task_ids))[i], test_ids = test_ids)
-}
-probs_df = bind_rows(df_list)
-
-df2 = full_join(df2, probs_df, by = c("task","test_ids"))
-
-# Add OR predictions
-ams_full_OR_ = data.frame(test_ids, task = "AMS full", OR = ams_full_OR)
-ams_youth_OR_ = data.frame(test_ids, task = "AMS youth", OR = ams_youth_OR)
-ams_OR = rbind(ams_full_OR_, ams_youth_OR_)
-
-df2 = full_join(df2, ams_OR, by = c("test_ids", "task"))
-
-save(df2, file="data/df2.Rda")
-
-# Dataframe variant 1 __________________________________________________________________________________________________
-df1 = data.frame(task = unlist(task_ids), model = unlist(learner_ids))
-df1[nrow(df1) + 1,] <- c("AMS youth", "OR")
-df1[nrow(df1) + 1,] <- c("AMS full", "OR")
-df1 = expand(df1, task, model, test_ids) # sollte tasks, model Anzahl mal test rows sein
-
-#truth = data.frame(test_ids = test_ids, truth = prediction_list[[2]]$truth)
-df1 = full_join(df1, data_test, by = "test_ids")
-df1$truth_01 <- as.factor(ifelse(df1$EMPLOYMENTDAYS == '>=90 Days', 1, 0))
-
-#sapply(df_list, function(i) pivot_longer(i, unique(unlist(learner_ids)), names_to = "model", values_to = "probabilities"))
-
-df1_probs = pivot_longer(df_list[[1]], unique(unlist(learner_ids)), names_to = "model", values_to = "probabilities")
-for(i in 2:length(df_list)){
-  df1_other = pivot_longer(df_list[[i]], unique(unlist(learner_ids)), names_to = "model", values_to = "probabilities")
-  df1_probs = rbind(df1_probs, df1_other)
-}
-
-# Add OR predictions
-ams_full_OR_ = data.frame(test_ids, model = "OR", task = "AMS full", probabilities = ams_full_OR)
-ams_youth_OR_ = data.frame(test_ids, model = "OR", task = "AMS youth", probabilities = ams_youth_OR)
-
-df1_probs = bind_rows(df1_probs, ams_full_OR_, ams_youth_OR_)
-
-
-df1 = full_join(df1, df1_probs, by = c("task", "model", "test_ids"))
-
-save(df1, file="data/df1.Rda")
-
-# Dataframe variante 3 __________________________________________________________________________________________________
-df3 = data.frame(test_ids = prediction_list[[1]]$row_ids)
-
-data_test$ams_youth_OR = ams_youth_OR
-data_test$ams_full_OR = ams_full_OR
-
-df3 = full_join(df3, data_test, by = "test_ids")
-df3$truth_01 <- as.factor(ifelse(df3$EMPLOYMENTDAYS == '>=90 Days', 1, 0))
-
-probs = lapply(prediction_list, function(i) i$prob[,1])
-probs = as.data.frame(do.call(cbind, probs))
-
-df3 = cbind(df3, probs)
-
-save(df3, file="data/df3.Rda")
 
 # Visualizations =======================================================================================================
 # Other ----------------------------------------------------------------------------------------------------------------
@@ -813,3 +676,21 @@ names(confusion_list) <- task_learner_ids
 scores_list = lapply(tab_bmr$prediction, 
                      function(i) i$score(measures = c(performance_measures, fairness_measures_absdiff), task = task_ams_youth))
 names(scores_list) <- task_learner_ids
+
+
+# Get logistic regression coefficients for ams full and ams youth ------------------------------------------------------
+# Plotting coefficients
+models[[2]]$coefficients
+tab_bmr$learner[[2]]$model
+
+plot_summs(tab_bmr$learner[[2]]$model)
+plot_summs(models[[2]], ci_level = 0) +
+  ggtitle("Koeffizienten AMS full")
+
+summary(models[[2]])
+
+plot_coefs(models[[2]])
+
+models[[2]]$formula
+
+models[[2]]$call$formula <- f_ams
