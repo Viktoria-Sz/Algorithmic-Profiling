@@ -21,6 +21,9 @@ bmr_green = readRDS("models/bmr_GreenSmall_RS1000_acc.Rds")
 #bmr_green_big = readRDS("models/bmr_green_big.Rds")
 bmr_green_filtering = readRDS("models/bmr_GreenFilter_RS1000_acc.Rds")
 bmr_all_filtering = readRDS("models/bmr_AllFilter_RS1000_acc.Rds")
+bmr_all_filteringRelief = readRDS("models/bmr_AllFilterRelief_RS1000_acc.Rds")
+bmr_all_filteringCmim = readRDS("models/bmr_AllFilterCmim_RS1000_acc.Rds")
+bmr_all_filteringDisr = readRDS("models/bmr_AllFilterDisr_RS1000_acc.Rds")
 
 bmr = bmr_ams_youth
 bmr$combine(bmr_ams_full)
@@ -29,6 +32,9 @@ bmr$combine(bmr_green)
 #bmr$combine(bmr_green_big)
 bmr$combine(bmr_green_filtering)
 bmr$combine(bmr_all_filtering)
+bmr$combine(bmr_all_filteringRelief)
+bmr$combine(bmr_all_filteringCmim)
+bmr$combine(bmr_all_filteringDisr)
 
 saveRDS(bmr, "models/bmr_full.Rds")
 
