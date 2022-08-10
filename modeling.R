@@ -31,14 +31,18 @@ source("learners.R", encoding="utf-8") # for predefined feature sets
 tasks = list(#task_ams_youth
              #task_ams
              #task_ams_ext
-             #task_green
-              # task_green_big
+             #task_diverse
+             #task_green_big
              #task_filtering_green
              #task_filtering_all
-             # task_all
+             #task_all
              #task_filtering_disr
-              #task_filtering_cmim
-              task_filtering_relief
+             #task_filtering_cmim
+             # task_filtering_relief
+  #task_behavior
+  #task_attitudes
+  #task_personality
+  #task_characteristics_filter
              )
 
 # Evaluation measures (use msrs() to get a list of all measures --------------------------------------------------------
@@ -72,7 +76,7 @@ fairness_measures_diff = list(msr("fairness.acc", operation = groupdiff_diff)
                       , msr("fairness.eod", operation = groupdiff_diff)
                       )
 
-group_measures = groupwise_metrics(msr("classif.acc"), task_ams_youth)
+#group_measures = groupwise_metrics(msr("classif.acc"), task_ams_youth)
 
 # fairness.acc: Absolute differences in accuracy across groups
 # fairness.fpr: Absolute differences in false positive rates across groups
@@ -167,7 +171,7 @@ evaluation_time
 # Evaluation ===========================================================================================================
 print(bmr)
 
-saveRDS(bmr, "models/bmr_AllFilterRelief_RS1000_acc.Rds")
+saveRDS(bmr, "models/bmr_behavior_RS1000_acc.Rds")
 #bmr_ams = readRDS("models/bmr_ams_youth.Rds")
 
 
