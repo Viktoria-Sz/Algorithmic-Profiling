@@ -26,7 +26,6 @@ ams_ext <- janitor::make_clean_names(ams_ext)
 
 # Explorative ==========================================================================================================
 # All useful vars ------------------------------------------------------------------------------------------------------
-
 all = c("EMPLOYMENTDAYS", "GENDER", "AGEGROUP", "CHILDCARE", "EDUCATION", "IMPAIRMENT", "STATEGROUP", "RGS", 
         "OCCUPATIONGROUP_all", "EMPLOYMENTHIST", "BUSINESSCASEDUR", "BUSINESSCASEFREQ_order", "SUPPORTMEASURE_order",
         "migklasse", "schuleat", "mighint12g_new",
@@ -45,9 +44,9 @@ all = c("EMPLOYMENTDAYS", "GENDER", "AGEGROUP", "CHILDCARE", "EDUCATION", "IMPAI
         "dep_gelassen", "dep_einsam", "dep_ärgerlich", "dep_niedergeschlagen", "dep_glücklich", "dep_nervös", 
         "dep_ängstlich", "dep_traurig", "dep_energie", 
         "depress", # Summenindex ((6-dep_gelassen)+dep_einsam+dep_ärgerlich+dep_niedergeschlagen+(6-dep_glücklich)+dep_nervös+dep_ängstlich+dep_traurig+(6-dep_energie)) divided by 9 - 1 to 5
-        "depress_WHO",  # Sumenindex wie depress, auf einer anderen Skala 0-36
+        "depressrisk_WHO",  # Sumenindex wie depress, auf einer anderen Skala 0-36
         #-> depress10_WHO # 0-10
-        "alkohol", "alccut", "rauchen", "schlaf", "sport", "ernährung", "fz_fernsehen_video", "fz_computerspiele", 
+        "alkohol", "rauchen", "schlaf", "sport", "ernährung", "fz_fernsehen_video", "fz_computerspiele", 
         "fz_internetsurfen", "fz_musikhören", "fz_lesen",
         "socialmeet", "socialcomp", "freunde", "beziehung", "geschwist", 
         #"finanzgut", "finanzschlecht", "efinanzgut", "efinanzschlecht",
@@ -83,7 +82,7 @@ green_big <- janitor::make_clean_names(green_big)
 green_t1 <- c("deutsch5", "bewerbung_no", "vorstell_no", "suche_specific", "suchintens",  "soc_konflikt", "soc_versteh")
 # green_t1 <- janitor::make_clean_names(green_t1)
 
-green <- c(ams, "zusage", "ALexp",
+green <- c(ams, "zusage", "a_lexp",
            "intrins", "extrins", "prefcat", "a_instrumental", "trust",
            "reserve", "sw_selbstwert", "gewissenh",
            "depressrisk_WHO", "alkohol", "socialcomp", 
@@ -91,34 +90,52 @@ green <- c(ams, "zusage", "ALexp",
 )
 green <- janitor::make_clean_names(green)
 
-# Influencable variable set ============================================================================================
-influencable = c("EMPLOYMENTDAYS", "EDUCATION", "OCCUPATIONGROUP_all", 
-                 "EMPLOYMENTHIST", "BUSINESSCASEDUR", "BUSINESSCASEFREQ_order", "SUPPORTMEASURE_order",
-        "notede", "notema", "edumore", "abbruch01",
-        "SDT", "tiere_no", "recall", "drecall", "rechnencorr1", "rechnencorr2", "kast1corra", "kast2corra", 
-        #-> ability
-        "ALexp", "exp", "zusage", "effortmot", "prefcat",
-        "jap_jobsec", "jap_income", "jap_career", "jap_anerkennung", "jap_freizeit", "jap_independent", 
-        "jap_creative", "jap_selfdevel", "jap_learnopp", "jap_interest", "jap_social", "jap_help", 
-        #-> intrins, extrins, intrins_min_extrins
-        "lottery", "leisurevalue", "familyvalue", "lifesat", "fertint", "a_instrumental", "a_belong", "a_interest", "reserve",
-        "sw_träumer", "sw_wertlos", "sw_selbstzweifel", "sw_zukunftsangst", "sw_mitmirzufrieden", "sw_selbstwert", "risk", "trust",
-        "p_introvertiert", "p_trust", "p_faul", "p_laidback", "p_goaloriented", "p_noculture", "p_extravert", 
-        "p_sorgen", "p_kritisieren", "p_gründlich", "p_insecure", "p_fantasie", "p_tüchtig", 
-        #-> gewissenh -> # p_tüchtig + p_gründlich + p_goaloriented)/3
-        "locus_self", "locus_luck", "locus_work", "locus_selbstzweifel", "locus_nocontrol",
-        "dep_gelassen", "dep_einsam", "dep_ärgerlich", "dep_niedergeschlagen", "dep_glücklich", "dep_nervös", 
-        "dep_ängstlich", "dep_traurig", "dep_energie", 
-        #-> depress # Summenindex ((6-dep_gelassen)+dep_einsam+dep_ärgerlich+dep_niedergeschlagen+(6-dep_glücklich)+dep_nervös+dep_ängstlich+dep_traurig+(6-dep_energie)) divided by 9 - 1 to 5
-        #-> depress_WHO  # Sumenindex wie depress, auf einer anderen Skala 0-36
-        #-> depress10_WHO # 0-10
-        "alkohol", "alccut", "rauchen", "schlaf", "sport", "ernährung", "fz_fernsehen_video", "fz_computerspiele", 
-        "fz_internetsurfen", "fz_musikhören", "fz_lesen",
-        "socialmeet", "socialcomp", "freunde", "beziehung", "geschwist", 
-        "finanzgut", "finanzschlecht", "efinanzgut", "efinanzschlecht", "e_unterstütz",
-        "edudad", "dadwork", "edumum", "mumwork", "varbeitgerne", "varbeitwichtig",
-        "marbeitgerne", "marbeitwichtig", "arbeitswerte_elt")
-influencable <- janitor::make_clean_names(influencable)
+diverse <- c(ams, "zusage", "a_lexp", "prefcat", 
+             "intrins", "extrins",  "a_instrumental", 
+             "notede", "notema", "ability",
+              "sw_selbstwert", "gewissenh", "trust", "risk",
+             "depressrisk_WHO", "alkohol", "socialcomp",
+             "edudad", "dadwork", "edumum", "mumwork"
+              
+)
+diverse <- janitor::make_clean_names(diverse)
+
+# Attitudes/Character variable set =====================================================================================
+characteristics = c("jap_jobsec", "jap_income", "jap_career", "jap_anerkennung", "jap_freizeit", "jap_independent",
+                 "jap_creative", "jap_selfdevel", "jap_learnopp","jap_interest","jap_social", "jap_help",
+                 "intrins","extrins","intrins_min_extrins","effortmot","lottery","leisurevalue","familyvalue",
+                 "lifesat","a_instrumental", "a_belong", "a_interest", "sw_träumer", "sw_wertlos", "sw_selbstzweifel",
+                 "sw_zukunftsangst","sw_mitmirzufrieden", "sw_selbstwert", "risk", "trust",
+                 "dep_gelassen",  "dep_einsam", "dep_ärgerlich", "dep_niedergeschlagen", "dep_glücklich", "dep_nervös",
+                 "dep_ängstlich", "dep_traurig",  "dep_energie", "depress", "depressrisk_WHO",  
+                 "p_introvertiert", "p_trust", "p_faul",  "p_laidback",  "p_goaloriented", "p_noculture",
+                 "p_extravert", "p_sorgen", "p_kritisieren", "p_gründlich", "p_insecure", "p_fantasie", "p_tüchtig",
+                 "gewissenh", "locus_self", "locus_luck", "locus_work", "locus_selbstzweifel", "locus_nocontrol",
+                 "alkohol",  "rauchen", "schlaf", "sport", "ernährung",
+                 "fz_fernsehen_video", "fz_computerspiele", "fz_internetsurfen", "fz_musikhören", "fz_lesen"
+)
+characteristics <- janitor::make_clean_names(characteristics)
+
+# attitudes variable set ===============================================================================================
+attitudes = c("jap_jobsec", "jap_income", "jap_career", "jap_anerkennung", "jap_freizeit", "jap_independent",
+              "jap_creative", "jap_selfdevel", "jap_learnopp","jap_interest","jap_social", "jap_help",
+              "intrins","extrins","intrins_min_extrins","effortmot","lottery","leisurevalue","familyvalue",
+              "lifesat","a_instrumental", "a_belong", "a_interest")
+attitudes <- janitor::make_clean_names(attitudes)
+
+# personality variable set ===============================================================================================
+personality = c("sw_selbstwert", "risk", "trust", "depressrisk_WHO",  
+                "p_introvertiert", "p_trust", "p_faul",  "p_laidback",  "p_goaloriented", "p_noculture",
+                "p_extravert", "p_sorgen", "p_kritisieren", "p_gründlich", "p_insecure", "p_fantasie", "p_tüchtig",
+                "gewissenh", "locus_self", "locus_luck", "locus_work", "locus_selbstzweifel", "locus_nocontrol")
+personality <- janitor::make_clean_names(personality)
+
+# behavior variable set ===============================================================================================
+behavior = c("alkohol",  "rauchen", "schlaf",  "sport",  "ernährung",
+             "fz_fernsehen_video", "fz_computerspiele", "fz_internetsurfen", "fz_musikhören", "fz_lesen",
+             "socialmeet", "socialcomp"
+)
+behavior <- janitor::make_clean_names(behavior)
 
 # Variable sets other paper ============================================================================================
 
@@ -127,6 +144,9 @@ influencable <- janitor::make_clean_names(influencable)
 # Variable sets from filtering -----------------------------------------------------------------------------------------
 filtering_green = scan("variable sets/filter_features.txt", what="character")
 filtering_green <- janitor::make_clean_names(filtering_green)
+
+filtering_characteristics = scan("variable sets/filter_characteristics_all.txt", what="character")
+filtering_characteristics <- janitor::make_clean_names(filtering_characteristics)
 
 filtering_all = scan("variable sets/filter_features_all.txt", what="character")
 filtering_all <- janitor::make_clean_names(filtering_all)

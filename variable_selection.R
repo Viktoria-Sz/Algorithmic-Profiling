@@ -46,7 +46,10 @@ mlr_filters
 filter_all = c("disr", "cmim", "jmi", "jmim", "mim", "mrmr", "njmim", "relief")
 
 filter_used = lapply(filter_all, flt)
-lapply(filter_used, function(i) i$calculate(task_all))
+# lapply(filter_used, function(i) i$calculate(task_all))
+# lapply(filter_used, function(i) i$calculate(task_green_big))
+lapply(filter_used, function(i) i$calculate(task_characteristics))
+
 filter_scores = lapply(filter_used, as.data.table)
 features_15 = lapply(filter_scores, function(i) i$feature[1:15])
 names(features_15) = filter_all
@@ -58,9 +61,11 @@ filter_features_cmim = features_15$cmim
 filter_features_relief = features_15$relief
 
 #write(filter_features, file = "variable sets/filter_features_all.txt")
-write(filter_features_disr, file = "variable sets/filter_features_disr.txt")
-write(filter_features_cmim, file = "variable sets/filter_features_cmim.txt")
-write(filter_features_relief, file = "variable sets/filter_features_relief.txt")
+# write(filter_features_disr, file = "variable sets/filter_features_disr.txt")
+# write(filter_features_cmim, file = "variable sets/filter_features_cmim.txt")
+# write(filter_features_relief, file = "variable sets/filter_features_relief.txt")
+
+write(filter_features, file = "variable sets/filter_characteristics_all.txt")
 
 
 # filter = flt("relief")
