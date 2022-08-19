@@ -31,7 +31,7 @@ all = c("EMPLOYMENTDAYS", "GENDER", "AGEGROUP", "CHILDCARE", "EDUCATION", "IMPAI
         "migklasse", "schuleat", "mighint12g_new",
         "notede", "notema", "elternschulint", "edumore", #"abbruch01",
         "SDT", "tiere_no", "recall", "drecall", "rechnencorr1", "rechnencorr2", "kast1corra", "kast2corra", "ability",
-        "ALexp", "exp", "zusage", "effortmot", "prefcat",
+        "ALexp", "exp", "statuslastjob", "zusage", "effortmot", "prefcat",
         "jap_jobsec", "jap_income", "jap_career", "jap_anerkennung", "jap_freizeit", "jap_independent", 
         "jap_creative", "jap_selfdevel", "jap_learnopp", "jap_interest", "jap_social", "jap_help", 
         "intrins", "extrins", "intrins_min_extrins",
@@ -48,7 +48,7 @@ all = c("EMPLOYMENTDAYS", "GENDER", "AGEGROUP", "CHILDCARE", "EDUCATION", "IMPAI
         #-> depress10_WHO # 0-10
         "alkohol", "rauchen", "schlaf", "sport", "ernährung", "fz_fernsehen_video", "fz_computerspiele", 
         "fz_internetsurfen", "fz_musikhören", "fz_lesen",
-        "socialmeet", "socialcomp", "freunde", "beziehung", "geschwist", 
+        "socialmeet", "socialcomp", "freunde", "beziehung", "geschwist", "hhalleine",
         #"finanzgut", "finanzschlecht", "efinanzgut", "efinanzschlecht",
         "edudad", "dadwork", "edumum", "mumwork", "arbeitswerte_elt0",  "e_unterstütz")
         #"varbeitgerne", "varbeitwichtig",
@@ -61,7 +61,7 @@ all <- janitor::make_clean_names(all)
 
 # Green Variables ------------------------------------------------------------------------------------------------------
 green_big <- c(ams, "zusage", "match", "jobsat", "vertrag", "endreason", "ALexp", "exp",
-               "intrins", "extrins", "lottery", "lifesat", "prefcat",
+               "intrins", "extrins", "lottery", "lifesat", "prefcat", "endreason01",
                "a_instrumental", "a_belong", "a_interest", "reserve", 
                "sw_träumer", "sw_wertlos", "sw_selbstzweifel", "sw_zukunftsangst",
                "sw_mitmirzufrieden", "sw_selbstwert", "risk", "trust", 
@@ -138,7 +138,14 @@ behavior = c("alkohol",  "rauchen", "schlaf",  "sport",  "ernährung",
 behavior <- janitor::make_clean_names(behavior)
 
 # Variable sets other paper ============================================================================================
-
+otherPES <- c("AGEGROUP", "BUSINESSCASEDUR", "BUSINESSCASEFREQ_order", "CHILDCARE", "beziehung", "hhalleine",
+              "EDUCATION", "EMPLOYMENTHIST", "endreason01", "GENDER", "IMPAIRMENT",
+              "intrins", "extrins", "sw_selbstwert", "leisurevalue", "locus_luck", "locus_nocontrol",
+              "locus_selbstzweifel", "locus_self", "locus_work",
+              "STATEGROUP", "notede", "notema", "ability",
+              "OCCUPATIONGROUP", "prefcat", "RGS"
+)
+otherPES <- janitor::make_clean_names(otherPES)
 
 # Variable selection methods ===========================================================================================
 # Variable sets from filtering -----------------------------------------------------------------------------------------

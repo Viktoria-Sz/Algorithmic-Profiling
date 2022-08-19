@@ -5,7 +5,8 @@ set.seed(42)
 
 # Load data ------------------------------------------------------------------------------------------------------------
 # load preperad dataset
-data <- readRDS("data/JuSAW_prepared_clean.rds")
+data <- readRDS("data/JuSAW_prepared.rds")
+data <- janitor::clean_names(data)
 
 
 # Load other scripts ---------------------------------------------------------------------------------------------------
@@ -386,6 +387,29 @@ unique(task_personality$feature_types$type)
 
 # check missings in test set
 ids = complete.cases(task_personality$data(test_ids))
+sum(!ids)
+
+# other PES ------------------------------------------------------------------------------------------------------------
+task_otherPES = as_task_classif(data[c("case", "employmentdays", otherPES)], 
+                                       target = "employmentdays", positive = ">=90 Days", id = "other_PES")
+
+task_otherPES$set_col_roles("case", roles = "name")
+
+ids = complete.cases(task_otherPES$data())
+sum(!ids)
+task_otherPES$filter(which(ids))
+
+# Set protected attribute
+# task_otherPES$col_roles$pta = "gender"
+
+# Set test set holdout rows
+#task_otherPES$set_row_roles(test_ids, roles = "holdout")
+
+print(task_otherPES) # 736 x 28
+unique(task_otherPES$feature_types$type)
+
+# check missings in test set
+ids = complete.cases(task_otherPES$data(test_ids))
 sum(!ids)
 
 # Make Test set ========================================================================================================

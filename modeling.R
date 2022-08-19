@@ -39,10 +39,11 @@ tasks = list(#task_ams_youth
              #task_filtering_disr
              #task_filtering_cmim
              # task_filtering_relief
-  #task_behavior
-  #task_attitudes
-  #task_personality
-  #task_characteristics_filter
+             #task_behavior
+             #task_attitudes
+             #task_personality
+             #task_characteristics_filter
+             task_otherPES
              )
 
 # Evaluation measures (use msrs() to get a list of all measures --------------------------------------------------------
@@ -171,7 +172,7 @@ evaluation_time
 # Evaluation ===========================================================================================================
 print(bmr)
 
-saveRDS(bmr, "models/bmr_behavior_RS1000_acc.Rds")
+saveRDS(bmr, "models/bmr_otherPES_RS1000_acc.Rds")
 #bmr_ams = readRDS("models/bmr_ams_youth.Rds")
 
 
@@ -181,7 +182,7 @@ saveRDS(bmr, "models/bmr_behavior_RS1000_acc.Rds")
 # Measure results
 # I guess aggregate is only important for cv -> check
 #bmr$aggregate(c(performance_measures, fairness_measures))
-bmr$score(c(performance_measures, fairness_measures_diff))
+bmr$score(c(performance_measures)) # fairness_measures_diff
 # fairness measures: male - female -> positiv male ist größer, negativ female ist größer
 bmr$score(group_measures)
 
