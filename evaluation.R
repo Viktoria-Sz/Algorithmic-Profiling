@@ -233,12 +233,16 @@ for(i in unique(df1$task)){
 
 
 # Measures -------------------------------------------------------------------------------------------------------------
-performance_measure_set = metric_set(accuracy, 
-                                     sens, # sensitivity, recall, TPR
-                                     spec, # specificity, TNR
-                                     precision, # Precision, Positive predictive value PPV
-                                     f_meas # fbeta, with beta = 1
-                                     )
+performance_measure_set = metric_set(accuracy 
+                                     ,sens # sensitivity, recall, TPR
+                                     ,spec # specificity, TNR
+                                     ,precision # Precision, Positive predictive value PPV
+                                     ,f_meas # fbeta, with beta = 1
+                                     ,roc_auc
+                                     ,pr_auc
+)
+
+
 
 measure_list = list()
 for(i in unique(df1$task)){
@@ -246,50 +250,24 @@ for(i in unique(df1$task)){
     filter(task == i) %>%
     filter(!is.na(estimate_0.66)) %>%
     group_by(model) %>%
-    performance_measure_set(truth_01, estimate = estimate_0.66, event_level = 'second')
+    performance_measure_set(truth_01, probabilities, estimate = estimate_0.66, event_level = 'second')
   
   measures_female = df1 %>%
     filter(task == i & gender == "female") %>%
     filter(!is.na(estimate_0.66)) %>%
     group_by(model) %>%
-    performance_measure_set(truth_01, estimate = estimate_0.66, event_level = 'second') %>%
+    performance_measure_set(truth_01, probabilities, estimate = estimate_0.66, event_level = 'second') %>%
     rename(female = .estimate)
   
   measures_male = df1 %>%
     filter(task == i & gender == "male") %>%
     filter(!is.na(estimate_0.66)) %>%
     group_by(model) %>%
-    performance_measure_set(truth_01, estimate = estimate_0.66, event_level = 'second') %>%
+    performance_measure_set(truth_01, probabilities, estimate = estimate_0.66, event_level = 'second') %>%
     rename(male = .estimate)
   
   measures = full_join(performance_measures, measures_female, by = c("model", ".metric", ".estimator"))
   measures = full_join(measures, measures_male, by = c("model", ".metric", ".estimator"))
-  
-  # AUC
-  auc = df1 %>%
-    filter(task == i & gender == "female") %>%
-    filter(!is.na(probabilities)) %>%
-    group_by(model) %>%
-    roc_auc(truth_01, probabilities, event_level = 'second')
-  
-  auc_female = df1 %>%
-    filter(task == i & gender == "female") %>%
-    filter(!is.na(probabilities)) %>%
-    group_by(model) %>%
-    roc_auc(truth_01, probabilities, event_level = 'second') %>%
-    rename(female = .estimate)
-  
-  auc_male = df1 %>%
-    filter(task == i & gender == "male") %>%
-    filter(!is.na(probabilities)) %>%
-    group_by(model) %>%
-    roc_auc(truth_01, probabilities, event_level = 'second') %>%
-    rename(male = .estimate)
-  
-  auc = full_join(auc, auc_female, by = c("model", ".metric", ".estimator"))
-  auc = full_join(auc, auc_male, by = c("model", ".metric", ".estimator"))
-  
-  measures = bind_rows(measures, auc)
   
   measures = mutate(measures, gender_diff = male - female)
   
@@ -298,6 +276,7 @@ for(i in unique(df1$task)){
                      "sens", # sensitivity, recall, TPR
                      "spec", # specificity, TNR
                      "roc_auc",
+                     "pr_auc",
                      "precision", # Precision, Positive predictive value PPV
                      "f_meas" # fbeta, with beta = 1
   )
@@ -312,7 +291,6 @@ for(i in unique(df1$task)){
   measure_list = append(measure_list, list(measures))
 }
 names(measure_list) = unique(df1$task)
-
 
 # Heatmap --------------------------------------------------------------------------------------------------------------
 heatmap_list = list()
