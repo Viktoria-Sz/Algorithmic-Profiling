@@ -27,6 +27,91 @@ heatmap_diff <- function(df, var_y, var_x, fill) {
     scale_fill_distiller(palette = "RdYlBu", direction = 1) 
 }
 
+# Performance Measures =================================================================================================
+performance <- function(df, tasks, label, protected, privileged, unprivileged, measure_list){
+  performance_measure_set = metric_set(accuracy 
+                                       ,sens # sensitivity, recall, TPR
+                                       ,spec # specificity, TNR
+                                       ,precision # Precision, Positive predictive value PPV
+                                       ,f_meas # fbeta, with beta = 1
+                                       ,roc_auc
+                                       ,pr_auc
+  )
+  
+  label <- enquo(label)
+  protected <- enquo(protected)
+  q_privileged <- rlang::parse_expr(privileged)
+  q_unprivileged <- rlang::parse_expr(unprivileged)
+  
+  for(i in tasks){
+    performance_measures = df %>%
+      filter(task == i) %>%
+      filter(!is.na(!!label)) %>%
+      group_by(model) %>%
+      performance_measure_set(truth_01, probabilities, estimate = !!label, event_level = 'second')
+    
+    measures_privileged = df %>%
+      filter(task == i & !!protected == privileged) %>%
+      filter(!is.na(!!label)) %>%
+      group_by(model) %>%
+      performance_measure_set(truth_01, probabilities, estimate = !!label, event_level = 'second') %>%
+      rename({{privileged}} := .estimate)
+    
+    measures_unprivileged = df %>%
+      filter(task == i & !!protected == unprivileged) %>%
+      filter(!is.na(!!label)) %>%
+      group_by(model) %>%
+      performance_measure_set(truth_01, probabilities, estimate = !!label, event_level = 'second') %>%
+      rename({{unprivileged}} := .estimate)
+    
+    measures = full_join(performance_measures, measures_privileged, by = c("model", ".metric", ".estimator"))
+    measures = full_join(measures, measures_unprivileged, by = c("model", ".metric", ".estimator"))
+    
+    measures = mutate(measures, priv_diff = !!q_privileged - !!q_unprivileged)
+    
+    # order variables for nicer plotting
+    metrics_order <- c("accuracy",
+                       "roc_auc",
+                       "pr_auc",
+                       "sens", # sensitivity, recall, TPR
+                       "spec", # specificity, TNR
+                       "precision", # Precision, Positive predictive value PPV
+                       "f_meas" # fbeta, with beta = 1
+    )
+    measures$.metric = factor(measures$.metric, level = metrics_order)
+
+    model_order <- c("Featureless", "OR", "Logistic Regression", "encode.colapply.classif.glmnet.tuned",
+                     "Random Forest.tuned", "Decision Tree.tuned",
+                     "encode.colapply.classif.xgboost.tuned", "classif.kknn.tuned"
+    )
+    measures$model = factor(measures$model, level = rev(model_order))
+
+    measures$model <- fct_recode(measures$model,
+                                 LogisticRegression =  "Logistic Regression",
+                                 PenalizedLR = "encode.colapply.classif.glmnet.tuned",
+                                 RandomForest = "Random Forest.tuned",
+                                 DecisionTree = "Decision Tree.tuned",
+                                 xgboost = "encode.colapply.classif.xgboost.tuned",
+                                 KKNN = "classif.kknn.tuned")
+
+    
+    # append to list over tasks
+    measure_list = append(measure_list, list(measures))
+    
+  }
+  names(measure_list) = tasks
+  measure_list
+
+}
+# measure_list = list()
+# task_list <- unique(df1$task)
+# df, tasks, label, protected, privileged, unprivileged, measure_list
+# test <- performance(df1, tasks = task_list, label = estimate_0.66, 
+#                     protected = gender, privileged = "male", unprivileged = "female", measure_list)
+# test <- performance(df1, tasks = task_list, label = estimate_0.66, 
+#                     protected = stategroup01, privileged = "AUT", unprivileged = "nAUT", measure_list)
+
+
 # CI-Plot ==============================================================================================================
 
 # ci_plot

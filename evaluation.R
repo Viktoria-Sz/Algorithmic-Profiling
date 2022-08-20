@@ -22,7 +22,7 @@ data_test = data[test_ids,]
 data_test$test_ids = test_ids
 
 # load full benchmark
-bmr = readRDS("models/bmr_full.Rds") 
+#bmr = readRDS("models/bmr_full.Rds") 
 
 
 # Make data table from benchmark result for further evaluation ---------------------------------------------------------
@@ -233,64 +233,13 @@ for(i in unique(df1$task)){
 
 
 # Measures -------------------------------------------------------------------------------------------------------------
-performance_measure_set = metric_set(accuracy 
-                                     ,sens # sensitivity, recall, TPR
-                                     ,spec # specificity, TNR
-                                     ,precision # Precision, Positive predictive value PPV
-                                     ,f_meas # fbeta, with beta = 1
-                                     ,roc_auc
-                                     ,pr_auc
-)
-
-
-
 measure_list = list()
-for(i in unique(df1$task)){
-  performance_measures = df1 %>%
-    filter(task == i) %>%
-    filter(!is.na(estimate_0.66)) %>%
-    group_by(model) %>%
-    performance_measure_set(truth_01, probabilities, estimate = estimate_0.66, event_level = 'second')
-  
-  measures_female = df1 %>%
-    filter(task == i & gender == "female") %>%
-    filter(!is.na(estimate_0.66)) %>%
-    group_by(model) %>%
-    performance_measure_set(truth_01, probabilities, estimate = estimate_0.66, event_level = 'second') %>%
-    rename(female = .estimate)
-  
-  measures_male = df1 %>%
-    filter(task == i & gender == "male") %>%
-    filter(!is.na(estimate_0.66)) %>%
-    group_by(model) %>%
-    performance_measure_set(truth_01, probabilities, estimate = estimate_0.66, event_level = 'second') %>%
-    rename(male = .estimate)
-  
-  measures = full_join(performance_measures, measures_female, by = c("model", ".metric", ".estimator"))
-  measures = full_join(measures, measures_male, by = c("model", ".metric", ".estimator"))
-  
-  measures = mutate(measures, gender_diff = male - female)
-  
-  # order variables for nicer plotting
-  metrics_order <- c("accuracy", 
-                     "sens", # sensitivity, recall, TPR
-                     "spec", # specificity, TNR
-                     "roc_auc",
-                     "pr_auc",
-                     "precision", # Precision, Positive predictive value PPV
-                     "f_meas" # fbeta, with beta = 1
-  )
-  measures$.metric = factor(measures$.metric, level = metrics_order)
-  
-  # model_order <- c("Featureless", "OR", "Logistic Regression", "encode.colapply.classif.glmnet", "Random Forest",
-  #                  "Decision Tree", "encode.colapply.classif.xgboost", "encode.colapply.classif.svm", "KKNN"
-  # )
-  # measures$model = factor(measures$model, level = rev(model_order))
-  
-  # append to list over tasks
-  measure_list = append(measure_list, list(measures))
-}
-names(measure_list) = unique(df1$task)
+task_list <- unique(df1$task)
+test <- performance(df1, tasks = task_list, label = estimate_0.66,
+                    protected = gender, privileged = "male", unprivileged = "female", measure_list)
+test <- performance(df1, tasks = task_list, label = estimate_0.66,
+                    protected = stategroup01, privileged = "AUT", unprivileged = "nAUT", measure_list)
+
 
 # Heatmap --------------------------------------------------------------------------------------------------------------
 heatmap_list = list()
