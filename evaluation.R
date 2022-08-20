@@ -233,40 +233,152 @@ for(i in unique(df1$task)){
 
 
 # Measures -------------------------------------------------------------------------------------------------------------
-measure_list = list()
 task_list <- unique(df1$task)
-test <- performance(df1, tasks = task_list, label = estimate_0.66,
+
+# use self-made function for performance measure computation
+# 66 % low and middle group
+measure_list = list()
+results_0.66_gender <- performance(df1, tasks = task_list, label = estimate_0.66,
                     protected = gender, privileged = "male", unprivileged = "female", measure_list)
-test <- performance(df1, tasks = task_list, label = estimate_0.66,
+measure_list = list()
+results_0.66_stategroup <- performance(df1, tasks = task_list, label = estimate_0.66,
                     protected = stategroup01, privileged = "AUT", unprivileged = "nAUT", measure_list)
+
+# 25 % low and middle group
+measure_list = list()
+results_0.25_gender <- performance(df1, tasks = task_list, label = estimate_0.25,
+                                   protected = gender, privileged = "male", unprivileged = "female", measure_list)
+measure_list = list()
+results_0.25_stategroup <- performance(df1, tasks = task_list, label = estimate_0.25,
+                                       protected = stategroup01, privileged = "AUT", unprivileged = "nAUT", measure_list)
 
 
 # Heatmap --------------------------------------------------------------------------------------------------------------
-heatmap_list = list()
-for(i in unique(df1$task)){
-  p = heatmap(measure_list[[i]], model, .metric, .estimate) +
+# use self-made function for heatmap generation with ggplot
+# 0.66 % middle and high group with gender ________________________________________________________________________________
+heatmap_list_0.66_gender = list()
+for(i in task_list){
+  p = heatmap(results_0.66_gender[[i]], model, .metric, .estimate) +
     ggtitle(i)
-  heatmap_list = append(heatmap_list,  list(p))
+  heatmap_list_0.66_gender = append(heatmap_list_0.66_gender,  list(p))
 }
-heatmap_male_list = list()
-for(i in unique(df1$task)){
-  p = heatmap(measure_list[[i]], model, .metric, male) +
+heatmap_list_0.66_male = list()
+for(i in task_list){
+  p = heatmap(results_0.66_gender[[i]], model, .metric, male) +
     ggtitle(i)
-  heatmap_male_list = append(heatmap_male_list,  list(p))
+  heatmap_list_0.66_male = append(heatmap_list_0.66_male,  list(p))
 }
-heatmap_female_list = list()
-for(i in unique(df1$task)){
-  p = heatmap(measure_list[[i]], model, .metric, female) +
+heatmap_list_0.66_female = list()
+for(i in task_list){
+  p = heatmap(results_0.66_gender[[i]], model, .metric, female) +
     ggtitle(i)
-  heatmap_female_list = append(heatmap_female_list,  list(p))
+  heatmap_list_0.66_female = append(heatmap_list_0.66_female,  list(p))
 }
-heatmap_genderdiff_list = list()
-for(i in unique(df1$task)){
-  p = heatmap_diff(measure_list[[i]], model, .metric, gender_diff) +
+heatmap_list_0.66_genderdiff = list()
+for(i in task_list){
+  p = heatmap_diff(results_0.66_gender[[i]], model, .metric, priv_diff) +
     ggtitle(i)
-  heatmap_genderdiff_list = append(heatmap_genderdiff_list,  list(p))
+  heatmap_list_0.66_genderdiff = append(heatmap_list_0.66_genderdiff,  list(p))
 }
 
+# 0.66 % middle and high group with stategroup ________________________________________________________________________________
+heatmap_list_0.66_stategroup = list()
+for(i in task_list){
+  p = heatmap(results_0.66_stategroup[[i]], model, .metric, .estimate) +
+    ggtitle(i)
+  heatmap_list_0.66_stategroup = append(heatmap_list_0.66_stategroup,  list(p))
+}
+heatmap_list_0.66_AUT = list()
+for(i in task_list){
+  p = heatmap(results_0.66_stategroup[[i]], model, .metric, AUT) +
+    ggtitle(i)
+  heatmap_list_0.66_AUT = append(heatmap_list_0.66_AUT,  list(p))
+}
+heatmap_list_0.66_nAUT = list()
+for(i in task_list){
+  p = heatmap(results_0.66_stategroup[[i]], model, .metric, nAUT) +
+    ggtitle(i)
+  heatmap_list_0.66_nAUT = append(heatmap_list_0.66_nAUT,  list(p))
+}
+heatmap_list_0.66_statediff = list()
+for(i in task_list){
+  p = heatmap_diff(results_0.66_stategroup[[i]], model, .metric, priv_diff) +
+    ggtitle(i)
+  heatmap_list_0.66_statediff = append(heatmap_list_0.66_statediff,  list(p))
+}
+
+# 0.25 % middle and low group with gender ________________________________________________________________________________
+heatmap_list_0.25_gender = list()
+for(i in task_list){
+  p = heatmap(results_0.25_gender[[i]], model, .metric, .estimate) +
+    ggtitle(i)
+  heatmap_list_0.25_gender = append(heatmap_list_0.25_gender,  list(p))
+}
+heatmap_list_0.25_male = list()
+for(i in task_list){
+  p = heatmap(results_0.25_gender[[i]], model, .metric, male) +
+    ggtitle(i)
+  heatmap_list_0.25_male = append(heatmap_list_0.25_male,  list(p))
+}
+heatmap_list_0.25_female = list()
+for(i in task_list){
+  p = heatmap(results_0.25_gender[[i]], model, .metric, female) +
+    ggtitle(i)
+  heatmap_list_0.25_female = append(heatmap_list_0.25_female,  list(p))
+}
+heatmap_list_0.25_genderdiff = list()
+for(i in task_list){
+  p = heatmap_diff(results_0.25_gender[[i]], model, .metric, priv_diff) +
+    ggtitle(i)
+  heatmap_list_0.25_genderdiff = append(heatmap_list_0.25_genderdiff,  list(p))
+}
+
+# 0.25 % middle and low group with stategroup ________________________________________________________________________________
+heatmap_list_0.25_stategroup = list()
+for(i in task_list){
+  p = heatmap(results_0.25_stategroup[[i]], model, .metric, .estimate) +
+    ggtitle(i)
+  heatmap_list_0.25_stategroup = append(heatmap_list_0.25_stategroup,  list(p))
+}
+heatmap_list_0.25_AUT = list()
+for(i in task_list){
+  p = heatmap(results_0.25_stategroup[[i]], model, .metric, AUT) +
+    ggtitle(i)
+  heatmap_list_0.25_AUT = append(heatmap_list_0.25_AUT,  list(p))
+}
+heatmap_list_0.25_nAUT = list()
+for(i in task_list){
+  p = heatmap(results_0.25_stategroup[[i]], model, .metric, nAUT) +
+    ggtitle(i)
+  heatmap_list_0.25_nAUT = append(heatmap_list_0.25_nAUT,  list(p))
+}
+heatmap_list_0.25_statediff = list()
+for(i in task_list){
+  p = heatmap_diff(results_0.25_stategroup[[i]], model, .metric, priv_diff) +
+    ggtitle(i)
+  heatmap_list_0.25_statediff = append(heatmap_list_0.25_statediff,  list(p))
+}
+
+# All heatmaps ---------------------------------------------------------------------------------------------------------
+heatmap_list_0.66_gender
+heatmap_list_0.66_male
+heatmap_list_0.66_female
+heatmap_list_0.66_genderdiff
+
+heatmap_list_0.66_stategroup
+heatmap_list_0.66_AUT
+heatmap_list_0.66_nAUT
+heatmap_list_0.66_statediff
+
+heatmap_list_0.25_gender
+heatmap_list_0.25_male
+heatmap_list_0.25_female
+heatmap_list_0.25_genderdiff
+
+heatmap_list_0.25_stategroup
+heatmap_list_0.25_AUT
+heatmap_list_0.25_nAUT
+heatmap_list_0.25_statediff
 
 # RESTE ################################################################################################################
 df1[1:10, c("task", "model", "probabilities")]
