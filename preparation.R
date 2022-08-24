@@ -76,7 +76,7 @@ table(data$r_betreuungspflichten)
 table(data$r_betreuungspflichten, data$kinder) 
 table(data$r_betreuungspflichten, data$female)
 table(data$kinder, data$female)
-table(data$kinder)
+table(data$kinder, useNA = "always")
 
 data$CHILDCARE_both <-factor(data$kinder, levels = c("ja", "nein"), labels =  c("ja", "nein"), ordered = FALSE)
 data$CHILDCARE <- ifelse(data$GENDER == "female" & data$CHILDCARE_both =="ja", "ja", "nein")
@@ -319,8 +319,8 @@ is.ordered(data$SUPPORTMEASURE_order)
 table(data$statuslastjob, useNA = "always")
 table(data$angest_level_l, useNA = "always") 
 table(data$beruf_letzt_isco1_t0, useNA = "always")
-table(data$beruf_letzt_isco1_t1, useNA = "always") # Ist hiermit ein Job zwischen t0 und t1 gemeint, der aber schon wieder beendet ist?
-table(data$beruf_isco1_t1, useNA = "always") # Unterschied zu vorheriger Variable?
+table(data$beruf_letzt_isco1_t1, useNA = "always") 
+table(data$beruf_isco1_t1, useNA = "always") 
 
 # How many were employed before/ for at least 3 months?
 table(data$job3, useNA = "always") # 3 Monate Job gehabt?
@@ -344,6 +344,8 @@ table(data$firmsize, useNA = "always")
 table(data$endlastjob, useNA = "always")
 table(data$endlastjob_t1, useNA = "always")
 table(data$endreason, useNA = "always") # Zusammenfassung
+data$endreason01 <- ifelse(data$endreason == "Mein Arbeitgeber hat mich gekündigt", 1, 0)
+table(data$endreason01, useNA = "always") # Zusammenfassung
 
 
 # Next job -------------------------------------------------------------------------------------------------------------
