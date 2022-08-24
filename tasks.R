@@ -151,7 +151,7 @@ ids = complete.cases(task_filtering_disr$data(test_ids))
 sum(!ids)
 
 # cmim  ----------------------------------------------------------------------------------------------------------------
-task_filtering_cmim = as_task_classif(data[c("case", "employmentdays", "gender", filtering_cmim)], 
+task_filtering_cmim = as_task_classif(data[c("case", "employmentdays", filtering_cmim)], 
                                       target = "employmentdays", positive = ">=90 Days", id = "filtering_cmim")
 
 task_filtering_cmim$set_col_roles("case", roles = "name")
@@ -161,11 +161,11 @@ ids = complete.cases(task_filtering_cmim$data())
 sum(!ids)
 task_filtering_cmim$filter(which(ids))
 
-task_filtering_cmim$col_roles$pta = "gender"
+# task_filtering_cmim$col_roles$pta = "gender"
 # Set test set holdout rows
 #task_green$set_row_roles(test_ids, roles = "holdout")
 
-print(task_filtering_cmim) # 953  Beobachtungen mit 30 Variablen
+print(task_filtering_cmim) # (953 x 16
 
 
 unique(task_filtering_cmim$feature_types$type)
@@ -174,8 +174,56 @@ unique(task_filtering_cmim$feature_types$type)
 ids = complete.cases(task_filtering_cmim$data(test_ids))
 sum(!ids)
 
+# jmi  ----------------------------------------------------------------------------------------------------------------
+task_filtering_jmi = as_task_classif(data[c("case", "employmentdays", filtering_jmi)], 
+                                      target = "employmentdays", positive = ">=90 Days", id = "filtering_jmi")
+
+task_filtering_jmi$set_col_roles("case", roles = "name")
+
+
+ids = complete.cases(task_filtering_jmi$data())
+sum(!ids)
+task_filtering_jmi$filter(which(ids))
+
+#task_filtering_jmi$col_roles$pta = "gender"
+# Set test set holdout rows
+#task_green$set_row_roles(test_ids, roles = "holdout")
+
+print(task_filtering_jmi) # (1082 x 16)
+
+
+unique(task_filtering_jmi$feature_types$type)
+
+# check missings in test set
+ids = complete.cases(task_filtering_jmi$data(test_ids))
+sum(!ids)
+
+# mrmr  ----------------------------------------------------------------------------------------------------------------
+task_filtering_mrmr = as_task_classif(data[c("case", "employmentdays", filtering_mrmr)], 
+                                      target = "employmentdays", positive = ">=90 Days", id = "filtering_mrmr")
+
+task_filtering_mrmr$set_col_roles("case", roles = "name")
+
+
+ids = complete.cases(task_filtering_mrmr$data())
+sum(!ids)
+task_filtering_mrmr$filter(which(ids))
+
+#task_filtering_mrmr$col_roles$pta = "gender"
+# Set test set holdout rows
+#task_green$set_row_roles(test_ids, roles = "holdout")
+
+print(task_filtering_mrmr) # (1082 x 16)
+
+
+unique(task_filtering_mrmr$feature_types$type)
+
+# check missings in test set
+ids = complete.cases(task_filtering_mrmr$data(test_ids))
+sum(!ids)
+
 # relief ---------------------------------------------------------------------------------------------------------------
-task_filtering_relief = as_task_classif(data[c("case", "employmentdays", "gender", filtering_relief)], 
+task_filtering_relief = as_task_classif(data[c("case", "employmentdays", filtering_relief)], 
                                         target = "employmentdays", positive = ">=90 Days", id = "filtering_relief")
 
 task_filtering_relief$set_col_roles("case", roles = "name")
@@ -185,7 +233,7 @@ ids = complete.cases(task_filtering_relief$data())
 sum(!ids)
 task_filtering_relief$filter(which(ids))
 
-task_filtering_relief$col_roles$pta = "gender"
+#task_filtering_relief$col_roles$pta = "gender"
 # Set test set holdout rows
 #task_green$set_row_roles(test_ids, roles = "holdout")
 

@@ -164,6 +164,12 @@ filtering_disr <- janitor::make_clean_names(filtering_disr)
 filtering_cmim = scan("variable sets/filter_features_cmim.txt", what="character")
 filtering_cmim <- janitor::make_clean_names(filtering_cmim)
 
+filtering_jmi = scan("variable sets/filter_features_jmi.txt", what="character")
+filtering_jmi <- janitor::make_clean_names(filtering_jmi)
+
+filtering_mrmr = scan("variable sets/filter_features_mrmr.txt", what="character")
+filtering_mrmr <- janitor::make_clean_names(filtering_mrmr)
+
 filtering_relief = scan("variable sets/filter_features_relief.txt", what="character")
 filtering_relief <- janitor::make_clean_names(filtering_relief)
 
