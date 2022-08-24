@@ -240,28 +240,61 @@ task_list <- unique(df1$task)
 measure_list = list()
 results_0.66_gender <- performance(df1, tasks = task_list, label = estimate_0.66,
                     protected = gender, privileged = "male", unprivileged = "female", measure_list)
+results_0.66_gender_df <- bind_rows(results_0.66_gender, .id = "task")
+
 measure_list = list()
 results_0.66_stategroup <- performance(df1, tasks = task_list, label = estimate_0.66,
                     protected = stategroup01, privileged = "AUT", unprivileged = "nAUT", measure_list)
+results_0.66_stategroup_df <- bind_rows(results_0.66_stategroup, .id = "task")
+
 
 # 25 % low and middle group
 measure_list = list()
 results_0.25_gender <- performance(df1, tasks = task_list, label = estimate_0.25,
                                    protected = gender, privileged = "male", unprivileged = "female", measure_list)
+results_0.25_gender_df <- bind_rows(results_0.25_gender, .id = "task")
+
 measure_list = list()
 results_0.25_stategroup <- performance(df1, tasks = task_list, label = estimate_0.25,
                                        protected = stategroup01, privileged = "AUT", unprivileged = "nAUT", measure_list)
+results_0.25_stategroup_df <- bind_rows(results_0.25_stategroup, .id = "task")
 
+
+
+# Averages -------------------------------------------------------------------------------------------------------------
+averages_0.66_gender <- results_0.66_gender_df %>%
+  group_by(task, .metric) %>%
+  summarise(mean_all = mean(.estimate),
+            mean_male = mean(male), mean_female = mean(female), mean_diff = mean(priv_diff))
+
+averages_0.66_stategroup <- results_0.66_stategroup_df %>%
+  group_by(task, .metric) %>%
+  summarise(mean_all = mean(.estimate),
+            mean_AUT = mean(AUT), mean_nAUT = mean(nAUT), mean_diff = mean(priv_diff))
+
+
+averages_0.25_gender <- results_0.25_gender_df %>%
+  group_by(task, .metric) %>%
+  summarise(mean_all = mean(.estimate),
+            mean_male = mean(male), mean_female = mean(female), mean_diff = mean(priv_diff))
+
+averages_0.25_stategroup <- results_0.25_stategroup_df %>%
+  group_by(task, .metric) %>%
+  summarise(mean_all = mean(.estimate),
+            mean_AUT = mean(AUT), mean_nAUT = mean(nAUT), mean_diff = mean(priv_diff))
 
 # Heatmap --------------------------------------------------------------------------------------------------------------
 # use self-made function for heatmap generation with ggplot
-# 0.66 % middle and high group with gender ________________________________________________________________________________
-heatmap_list_0.66_gender = list()
+
+# 0.66 
+heatmap_list_0.66 = list()
 for(i in task_list){
   p = heatmap(results_0.66_gender[[i]], model, .metric, .estimate) +
     ggtitle(i)
-  heatmap_list_0.66_gender = append(heatmap_list_0.66_gender,  list(p))
+  heatmap_list_0.66 = append(heatmap_list_0.66,  list(p))
 }
+
+# 0.66 % middle and high group with gender ________________________________________________________________________________
 heatmap_list_0.66_male = list()
 for(i in task_list){
   p = heatmap(results_0.66_gender[[i]], model, .metric, male) +
@@ -282,12 +315,6 @@ for(i in task_list){
 }
 
 # 0.66 % middle and high group with stategroup ________________________________________________________________________________
-heatmap_list_0.66_stategroup = list()
-for(i in task_list){
-  p = heatmap(results_0.66_stategroup[[i]], model, .metric, .estimate) +
-    ggtitle(i)
-  heatmap_list_0.66_stategroup = append(heatmap_list_0.66_stategroup,  list(p))
-}
 heatmap_list_0.66_AUT = list()
 for(i in task_list){
   p = heatmap(results_0.66_stategroup[[i]], model, .metric, AUT) +
@@ -307,13 +334,16 @@ for(i in task_list){
   heatmap_list_0.66_statediff = append(heatmap_list_0.66_statediff,  list(p))
 }
 
-# 0.25 % middle and low group with gender ________________________________________________________________________________
-heatmap_list_0.25_gender = list()
+
+# 0.25 % ---------------------------------------------------------------------------------------------------------------
+heatmap_list_0.25 = list()
 for(i in task_list){
   p = heatmap(results_0.25_gender[[i]], model, .metric, .estimate) +
     ggtitle(i)
-  heatmap_list_0.25_gender = append(heatmap_list_0.25_gender,  list(p))
+  heatmap_list_0.25 = append(heatmap_list_0.25,  list(p))
 }
+
+# 0.25 % middle and low group with gender ________________________________________________________________________________
 heatmap_list_0.25_male = list()
 for(i in task_list){
   p = heatmap(results_0.25_gender[[i]], model, .metric, male) +
@@ -334,12 +364,6 @@ for(i in task_list){
 }
 
 # 0.25 % middle and low group with stategroup ________________________________________________________________________________
-heatmap_list_0.25_stategroup = list()
-for(i in task_list){
-  p = heatmap(results_0.25_stategroup[[i]], model, .metric, .estimate) +
-    ggtitle(i)
-  heatmap_list_0.25_stategroup = append(heatmap_list_0.25_stategroup,  list(p))
-}
 heatmap_list_0.25_AUT = list()
 for(i in task_list){
   p = heatmap(results_0.25_stategroup[[i]], model, .metric, AUT) +
@@ -360,25 +384,34 @@ for(i in task_list){
 }
 
 # All heatmaps ---------------------------------------------------------------------------------------------------------
-heatmap_list_0.66_gender
+heatmap_list_0.66
+
 heatmap_list_0.66_male
 heatmap_list_0.66_female
 heatmap_list_0.66_genderdiff
-
-heatmap_list_0.66_stategroup
 heatmap_list_0.66_AUT
 heatmap_list_0.66_nAUT
 heatmap_list_0.66_statediff
 
-heatmap_list_0.25_gender
+
+heatmap_list_0.25
+
 heatmap_list_0.25_male
 heatmap_list_0.25_female
 heatmap_list_0.25_genderdiff
-
-heatmap_list_0.25_stategroup
 heatmap_list_0.25_AUT
 heatmap_list_0.25_nAUT
 heatmap_list_0.25_statediff
+
+# Test heatmap
+library(RColorBrewer)
+ggplot(results_0.25_stategroup[[1]], aes(y= model, x = .metric, fill = priv_diff)) +
+  geom_tile() +
+  theme(axis.title.x=element_blank(),axis.title.y=element_blank(),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1)) + 
+  geom_text(aes(label = round(priv_diff, 2))) +
+  scale_fill_distiller(palette = colorRampPalette(brewer.pal(9, "RdYlBu"))(12)[6:12] # "RdYlBu"
+                       , direction = 1, limits = c(-1,1))
 
 # RESTE ################################################################################################################
 df1[1:10, c("task", "model", "probabilities")]
