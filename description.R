@@ -18,7 +18,7 @@ data_pre <- readRDS("data/dataJuSAW.rds")
 source("variable_sets.R", encoding="utf-8") # for predefined feature sets
 source("functions.R", encoding="utf-8")
 
-# Easy descriptions ####################################################################################################
+# Simple descriptions ##################################################################################################
 # General Vars =========================================================================================================
 # Employmentdays - dependent variable ----------------------------------------------------------------------------------
 ggplot(data, aes(x = as.factor(r_besch), fill = as.factor(r_besch))) +
@@ -224,13 +224,72 @@ ggplot(data, aes(x = as.factor(depressrisk_WHO), group = EMPLOYMENTDAYS, fill = 
 ggplot(data, aes(x = as.factor(depressrisk_WHO), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = "fill")
 
-# Behavior ---------------------------------------------------------------------
-# Time structure ---------------------------------------------------------------
-# Social -----------------------------------------------------------------------
-# Relationships ----------------------------------------------------------------
-
 
 # Other descriptives ###################################################################################################
+# CI-Plots =============================================================================================================
+
+
+
+jobfind_rate <- mean(data$EMPLOYMENTDAYS == ">=90 Days")
+
+var_list <- c("stategroup01", "AGEGROUP", "CHILDCARE", "IMPAIRMENT", "EDUCATION")
+
+rates <- data %>%
+  group_by(GENDER) %>%
+  do(binom_stats(.)) %>%
+  arrange(Proportion) %>%
+  ungroup() %>%
+  rename(char = GENDER) %>%
+  mutate(var = "GENDER")
+
+for(i in var_list){
+  rates_new <- data %>%
+    group_by(data[i]) %>%
+    do(binom_stats(.)) %>%
+    arrange(Proportion) %>%
+    ungroup() %>%
+    rename(char = i) %>%
+    mutate(var = i)
+  rates <- rbind(rates, rates_new)
+}
+
+
+ggplot(rates, aes(x = char, y = Proportion, colour = var)) +
+  geom_hline(yintercept = jobfind_rate, col = "red", alpha = .35, lty = 2) + 
+  geom_point(size = 5) +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper)
+                , width = 0.3, size = 2) +
+  theme(axis.text = element_text(size = 8)) +
+  scale_y_continuous(limits = c(0, 0.6)) +
+  facet_grid(cols = vars(var), scales = "free") +
+  # facet_grid(rows = vars(var), scales = "free") +
+  # coord_flip() +
+  theme(legend.position = "none", axis.title.x = element_blank())
+  
+
+ci_plot <- function(df, var){
+  var <- enquo(var)
+  
+  rates <- df %>%
+    group_by(!!var) %>%
+    do(binom_stats(.)) %>%
+    arrange(Proportion) %>%
+    ungroup() #%>%
+  # mutate(#var = gsub("GENDER_", "", var),
+  #        !!var = reorder(factor(!!var), Proportion))
+  
+  ggplot(rates, aes(x = !!var, y = Proportion)) +
+    geom_hline(yintercept = jobfind_rate, col = "red", alpha = .35, lty = 2) + 
+    geom_point() +
+    geom_errorbar(aes(ymin = Lower, ymax = Upper), width = .1) +
+    theme(axis.text = element_text(size = 8)) +
+    xlab("")
+}
+
+ci_plot(data, GENDER)
+
+
+# Associations with Cramers V ==========================================================================================
 # AMS ------------------------------------------------------------------------------------------------------------------
 cramerv_ams <- DescTools::PairApply(data[, c(ams[-length(ams)], "SUPPORTMEASURE_order")], DescTools::CramerV)
 #cramerv_ams <- DescTools::PairApply(data[, ams], DescTools::CramerV)
