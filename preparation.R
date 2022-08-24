@@ -147,6 +147,9 @@ data$STATEGROUP <- factor(data$r_staatengruppe, levels = c("AUT", "DRITT", "EU")
                           labels =  c("AUT", "DRITT", "EU"), ordered = FALSE)
 table(data$STATEGROUP, useNA = "always")
 
+data$stategroup01 = as.factor(ifelse(data$STATEGROUP == "AUT", "AUT", "nAUT"))
+
+
 # Variable Isalm und other
 data$relig_islam <- as.factor(ifelse(data$relig == "Islam", "Islam", "other"))
 ggplot(data, aes(x = relig_islam, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
