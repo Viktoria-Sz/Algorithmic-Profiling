@@ -1,0 +1,15 @@
+locus_nocontrol
+trust
+lifesat
+risk
+familyvalue
+intrins
+effortmot
+sw_selbstwert
+leisurevalue
+gewissenh
+intrins_min_extrins
+depress
+sport
+locus_selbstzweifel
+extrins

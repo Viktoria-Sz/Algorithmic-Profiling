@@ -1,0 +1,15 @@
+locus_nocontrol
+lottery
+jap_help
+sport
+fz_musikhoren
+jap_income
+depressrisk_who
+rauchen
+a_belong
+p_extravert
+schlaf
+fz_computerspiele
+jap_independent
+alkohol
+fz_lesen
