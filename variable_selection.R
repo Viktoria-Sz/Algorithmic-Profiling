@@ -55,7 +55,7 @@ features_15 = lapply(filter_scores, function(i) i$feature[1:15])
 names(features_15) = filter_all
 features_50 = lapply(filter_scores, function(i) i$feature[1:50])
 names(features_50) = filter_all
-filter_features = Reduce(intersect, features_50[1:7])
+#filter_features = Reduce(intersect, features_50[1:7])
 filter_features_disr = features_15$disr
 filter_features_cmim = features_15$cmim
 filter_features_jmi = features_15$jmi
@@ -63,14 +63,13 @@ filter_features_mrmr = features_15$mrmr
 filter_features_relief = features_15$relief
 
 #write(filter_features, file = "variable sets/filter_features_all.txt")
-# write(filter_features_disr, file = "variable sets/filter_features_disr.txt")
-# write(filter_features_jmi, file = "variable sets/filter_features_jmi.txt")
-# write(filter_features_mrmr, file = "variable sets/filter_features_mrmr.txt")
-# write(filter_features_cmim, file = "variable sets/filter_features_cmim.txt")
+write(filter_features_disr, file = "variable sets/filter_features_disr.txt")
+write(filter_features_jmi, file = "variable sets/filter_features_jmi.txt")
+write(filter_features_mrmr, file = "variable sets/filter_features_mrmr.txt")
+write(filter_features_cmim, file = "variable sets/filter_features_cmim.txt")
+write(filter_features_relief, file = "variable sets/filter_features_relief.txt")
 
-# write(filter_features_relief, file = "variable sets/filter_features_relief.txt")
-
-write(filter_features, file = "variable sets/filter_characteristics_all.txt")
+# write(filter_features, file = "variable sets/filter_characteristics_all.txt")
 
 
 # filter = flt("relief")

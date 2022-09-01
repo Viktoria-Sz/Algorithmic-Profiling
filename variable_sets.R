@@ -17,7 +17,6 @@ ams <- janitor::make_clean_names(ams)
 ams_ext <- c("EMPLOYMENTDAYS", "GENDER", "AGEGROUP", "STATEGROUP", "EDUCATION", "CHILDCARE_both", "RGS", 
              "IMPAIRMENT_order", "OCCUPATIONGROUP_all",  #"EMPLOYMENTHIST",
              "r_monate_erw_j1voral", "r_monate_erw_j2voral", "r_monate_erw_j3voral", "r_monate_erw_j4voral",
-             #"r_geschaeftsfall_j1voral", "r_geschaeftsfall_j2voral", "r_geschaeftsfall_j3voral", "r_geschaeftsfall_j4voral",
              "BUSINESSCASEFREQ_order" , "BUSINESSCASEDUR", "SUPPORTMEASURE_order"
               )
 
@@ -26,8 +25,10 @@ ams_ext <- janitor::make_clean_names(ams_ext)
 
 # Explorative ==========================================================================================================
 # All useful vars ------------------------------------------------------------------------------------------------------
-all = c("EMPLOYMENTDAYS", "GENDER", "AGEGROUP", "CHILDCARE", "EDUCATION", "IMPAIRMENT", "STATEGROUP", "RGS", 
-        "OCCUPATIONGROUP_all", "EMPLOYMENTHIST", "BUSINESSCASEDUR", "BUSINESSCASEFREQ_order", "SUPPORTMEASURE_order",
+all = c("EMPLOYMENTDAYS", "GENDER", "AGEGROUP", "CHILDCARE", "CHILDCARE_both", "IMPAIRMENT", "IMPAIRMENT_order",
+        "STATEGROUP", "RGS", "OCCUPATIONGROUP", "OCCUPATIONGROUP_all", "EDUCATION",
+         "EMPLOYMENTHIST", "r_monate_erw_j1voral","r_monate_erw_j2voral", "r_monate_erw_j3voral", "r_monate_erw_j4voral",
+        "BUSINESSCASEDUR", "BUSINESSCASEFREQ_order", "SUPPORTMEASURE_order",
         "migklasse", "schuleat", "mighint12g_new",
         "notede", "notema", "elternschulint", "edumore", #"abbruch01",
         "SDT", "tiere_no", "recall", "drecall", "rechnencorr1", "rechnencorr2", "kast1corra", "kast2corra", "ability",
@@ -143,7 +144,7 @@ otherPES <- c("AGEGROUP", "BUSINESSCASEDUR", "BUSINESSCASEFREQ_order", "CHILDCAR
               "intrins", "extrins", "sw_selbstwert", "leisurevalue", "locus_luck", "locus_nocontrol",
               "locus_selbstzweifel", "locus_self", "locus_work",
               "STATEGROUP", "notede", "notema", "ability",
-              "OCCUPATIONGROUP", "prefcat", "RGS"
+              "OCCUPATIONGROUP_all", "prefcat", "RGS"
 )
 otherPES <- janitor::make_clean_names(otherPES)
 
