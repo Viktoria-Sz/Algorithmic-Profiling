@@ -17,26 +17,42 @@ bmr_ams = readRDS("models/bmr_Ams_RS1000_auc.Rds") # ams full und youth für die
 bmr_ams_full = readRDS("models/bmr_AmsFull_RS1000_acc.Rds")
 bmr_ams_youth = readRDS("models/bmr_AmsYouth_RS1000_acc.Rds")
 bmr_ams_ext = readRDS("models/bmr_AmsExt_RS1000_acc.Rds")
-bmr_green = readRDS("models/bmr_GreenSmall_RS1000_acc.Rds")
-#bmr_green_big = readRDS("models/bmr_green_big.Rds")
-bmr_green_filtering = readRDS("models/bmr_GreenFilter_RS1000_acc.Rds")
-bmr_all_filtering = readRDS("models/bmr_AllFilter_RS1000_acc.Rds")
+# bmr_green = readRDS("models/bmr_GreenSmall_RS1000_acc.Rds")
+# bmr_green_big = readRDS("models/bmr_green_big.Rds")
+# bmr_green_filtering = readRDS("models/bmr_GreenFilter_RS1000_acc.Rds")
+# bmr_all_filtering = readRDS("models/bmr_AllFilter_RS1000_acc.Rds")
 bmr_all_filteringRelief = readRDS("models/bmr_AllFilterRelief_RS1000_acc.Rds")
-bmr_all_filteringCmim = readRDS("models/bmr_AllFilterCmim_RS1000_acc.Rds")
+bmr_all_filteringCmim = readRDS("models/bmr_AllFilterCMIM_RS1000_acc.Rds")
 bmr_all_filteringDisr = readRDS("models/bmr_AllFilterDisr_RS1000_acc.Rds")
+bmr_all_filteringJMI = readRDS("models/bmr_AllFilterJMI_RS1000_acc.Rds")
+bmr_all_filteringMRMR = readRDS("models/bmr_AllFilterMRMR_RS1000_acc.Rds")
+bmr_diverse = readRDS("models/bmr_diverse_RS1000_acc.Rds") # ams full und youth für die coefficients
+bmr_behavior = readRDS("models/bmr_behavior_RS1000_acc.Rds") # ams full und youth für die coefficients
+bmr_attitudes = readRDS("models/bmr_attitudes_RS1000_acc.Rds") # ams full und youth für die coefficients
+bmr_personality = readRDS("models/bmr_personality_RS1000_acc.Rds") # ams full und youth für die coefficients
+bmr_characteristics = readRDS("models/bmr_characteristics_RS1000_acc.Rds") # ams full und youth für die coefficients
+bmr_otherPES = readRDS("models/bmr_otherPES_RS1000_acc.Rds") # ams full und youth für die coefficients
 
 bmr = bmr_ams_youth
 bmr$combine(bmr_ams_full)
 bmr$combine(bmr_ams_ext)
-bmr$combine(bmr_green)
-#bmr$combine(bmr_green_big)
-bmr$combine(bmr_green_filtering)
-bmr$combine(bmr_all_filtering)
+# bmr$combine(bmr_green)
+# bmr$combine(bmr_green_big)
+# bmr$combine(bmr_green_filtering)
+# bmr$combine(bmr_all_filtering)
 bmr$combine(bmr_all_filteringRelief)
 bmr$combine(bmr_all_filteringCmim)
 bmr$combine(bmr_all_filteringDisr)
+bmr$combine(bmr_all_filteringJMI)
+bmr$combine(bmr_all_filteringMRMR)
+bmr$combine(bmr_diverse)
+bmr$combine(bmr_behavior)
+bmr$combine(bmr_attitudes)
+bmr$combine(bmr_personality)
+bmr$combine(bmr_characteristics)
+bmr$combine(bmr_otherPES)
 
-saveRDS(bmr, "models/bmr_full.Rds")
+#saveRDS(bmr, "models/bmr_full.Rds")
 
 # Make data table from benchmark result for further evaluation ---------------------------------------------------------
 tab_bmr <- as.data.table(bmr)
@@ -151,9 +167,10 @@ df1_probs = bind_rows(df1_probs, ams_full_OR_, ams_youth_OR_)
 df1 = full_join(df1, df1_probs, by = c("task", "model", "test_ids"))
 
 
-# make estimate column with 0.66 and 0.5
+# make estimate column with 0.66 and 0.5 and 0.25
 df1$estimate_0.66 = as.factor(ifelse(df1$probabilities >= 0.66, 1, 0))
 df1$estimate_0.5 = as.factor(ifelse(df1$probabilities >= 0.5, 1, 0))
+df1$estimate_0.25 = as.factor(ifelse(df1$probabilities >= 0.25, 1, 0))
 
 save(df1, file="data/df1.Rda")
 
