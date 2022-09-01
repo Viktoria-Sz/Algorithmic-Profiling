@@ -127,7 +127,7 @@ unique(task_filtering_all$feature_types$type)
 #sum(!ids)
 
 # disr -----------------------------------------------------------------------------------------------------------------
-task_filtering_disr = as_task_classif(data[c("case", "employmentdays", "gender", filtering_disr)], 
+task_filtering_disr = as_task_classif(data[c("case", "employmentdays", filtering_disr)], 
                                       target = "employmentdays", positive = ">=90 Days", id = "filtering_disr")
 
 task_filtering_disr$set_col_roles("case", roles = "name")
@@ -137,7 +137,7 @@ ids = complete.cases(task_filtering_disr$data())
 sum(!ids)
 task_filtering_disr$filter(which(ids))
 
-task_filtering_disr$col_roles$pta = "gender"
+# task_filtering_disr$col_roles$pta = "gender"
 # Set test set holdout rows
 #task_green$set_row_roles(test_ids, roles = "holdout")
 
