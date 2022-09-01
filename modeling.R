@@ -32,15 +32,11 @@ tasks = list(#task_ams_youth
              #task_ams
              #task_ams_ext
              #task_diverse
-             #task_green_big
-             #task_filtering_green
-             #task_filtering_all
-             #task_all
-             #task_filtering_disr
-             #task_filtering_mrmr
-             task_filtering_jmi
+             # task_filtering_disr
+             # task_filtering_mrmr
+             # task_filtering_jmi
              # task_filtering_cmim
-             # task_filtering_relief
+              task_filtering_relief
              # task_behavior
              # task_attitudes
              # task_personality
@@ -174,7 +170,7 @@ evaluation_time
 # Evaluation ===========================================================================================================
 print(bmr)
 
-saveRDS(bmr, "models/bmr_AllFilterJmi_RS1000_acc.Rds")
+saveRDS(bmr, "models/bmr_AllFilterRelief_RS1000_acc.Rds")
 #bmr_ams = readRDS("models/bmr_ams_youth.Rds")
 
 
