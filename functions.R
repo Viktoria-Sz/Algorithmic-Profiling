@@ -24,18 +24,72 @@ heatmap_diff <- function(df, var_y, var_x, fill) {
     theme(axis.title.x=element_blank(),axis.title.y=element_blank(),
           axis.text.x = element_text(angle = 70, vjust = 1, hjust=1)) + 
     geom_text(aes(label = round(!!fill, 2))) +
-    scale_fill_distiller(palette = "RdYlBu", direction = 1) 
+    scale_fill_distiller(palette = "RdYlBu"
+                         , direction = 1, limits = c(-0.5,0.5))
 }
 
 # Performance Measures =================================================================================================
+# sensitivity, recall, hit rate, or true positive rate (TPR)
+# -> sens umbenennen in TPR (sens, recall)
+
+# FNR
+# TPR = 1 - FNR -> FNR = 1 - TPR
+# mutate(FNR = 1-TPR)
+FNR <- function(data, truth, estimate, ...) {
+  sens(data = data, truth = !! rlang::enquo(truth), estimate = !! rlang::enquo(estimate), ...) %>%
+    mutate(.estimate = 1 - .estimate, .metric = "FNR")
+}
+FNR <- new_class_metric(FNR, "minimize")
+
+# specificity, selectivity or true negative rate (TNR)
+# -> spec umbenennen in TNR (spec)
+
+# FPR
+# TNR = 1 - FPR -> FPR = 1 - TNR
+# mutate(FPR = 1-TNR)
+FPR <- function(data, truth, estimate, ...) {
+  spec(data = data, truth = !! rlang::enquo(truth), estimate = !! rlang::enquo(estimate), ...) %>%
+    mutate(.estimate = 1 - .estimate, .metric = "FPR")
+}
+FPR <- new_class_metric(FPR, "minimize")
+
+# precision or positive predictive value (PPV)
+# -> precision umbenennen in PPV (precision)
+
+# False discrovery rate FDR
+# PPV = 1 - FDR -> FDR = 1 - PPV
+# mutate(FDR = 1-PPV)
+FDR <- function(data, truth, estimate, ...) {
+  ppv(data = data, truth = !! rlang::enquo(truth), estimate = !! rlang::enquo(estimate), ...) %>%
+    mutate(.estimate = 1 - .estimate, .metric = "FDR")
+}
+FDR <- new_class_metric(FDR, "minimize")
+
+# Negative predictive value (NPV)
+FOR <- function(data, truth, estimate, ...) {
+  npv(data = data, truth = !! rlang::enquo(truth), estimate = !! rlang::enquo(estimate), ...) %>%
+    mutate(.estimate = 1 - .estimate, .metric = "FOR")
+}
+FOR <- new_class_metric(FOR, "minimize")
+
+# False  ommission rate
+# FOR = 1 - NPV
+
+# All measures combined
 performance <- function(df, tasks, label, protected, privileged, unprivileged, measure_list){
   performance_measure_set = metric_set(accuracy 
                                        ,sens # sensitivity, recall, TPR
+                                       ,FNR
                                        ,spec # specificity, TNR
-                                       ,precision # Precision, Positive predictive value PPV
+                                       ,FPR
+                                       ,ppv # Precision, Positive predictive value PPV
+                                       ,FDR
+                                       ,npv
+                                       ,FOR
                                        ,f_meas # fbeta, with beta = 1
                                        ,roc_auc
                                        ,pr_auc
+                                       ,detection_prevalence
   )
   
   label <- enquo(label)
@@ -70,12 +124,18 @@ performance <- function(df, tasks, label, protected, privileged, unprivileged, m
     measures = mutate(measures, priv_diff = !!q_privileged - !!q_unprivileged)
     
     # order variables for nicer plotting
-    metrics_order <- c("accuracy",
+    metrics_order <- c("detection_prevalence",
+                       "accuracy",
                        "roc_auc",
                        "pr_auc",
                        "sens", # sensitivity, recall, TPR
+                       "FNR",
                        "spec", # specificity, TNR
-                       "precision", # Precision, Positive predictive value PPV
+                       "FPR",
+                       "ppv", # Precision, Positive predictive value PPV
+                       "FDR",
+                       "npv",
+                       "FOR",
                        "f_meas" # fbeta, with beta = 1
     )
     measures$.metric = factor(measures$.metric, level = metrics_order)

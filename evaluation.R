@@ -262,26 +262,67 @@ results_0.25_stategroup_df <- bind_rows(results_0.25_stategroup, .id = "task")
 
 
 # Averages -------------------------------------------------------------------------------------------------------------
+models <- c("LogisticRegression", "PenalizedLR", "RandomForest", "xgboost", "KKNN")
+
+library("writexl")
+
+# Averages by task _____________________________________________________________________________________________________
+round <- 3
 averages_0.66_gender <- results_0.66_gender_df %>%
+  filter(model %in% models) %>%
   group_by(task, .metric) %>%
-  summarise(mean_all = mean(.estimate),
-            mean_male = mean(male), mean_female = mean(female), mean_diff = mean(priv_diff))
+  summarise(mean_all =round(mean(.estimate), round),
+            mean_male = round(mean(male), round), mean_female = round(mean(female),round), mean_diff = round(mean(priv_diff),round))
+write_xlsx(averages_0.66_gender,"models\\averages\\averages_0.66_gender.xlsx")
+
 
 averages_0.66_stategroup <- results_0.66_stategroup_df %>%
+  filter(model %in% models) %>%
   group_by(task, .metric) %>%
-  summarise(mean_all = mean(.estimate),
-            mean_AUT = mean(AUT), mean_nAUT = mean(nAUT), mean_diff = mean(priv_diff))
+  summarise(mean_all = round(mean(.estimate),round),
+            mean_AUT = round(mean(AUT),round), mean_nAUT = round(mean(nAUT),round), mean_diff = round(mean(priv_diff),round))
+write_xlsx(averages_0.66_stategroup,"models\\averages\\averages_0.66_stategroup.xlsx")
 
 
 averages_0.25_gender <- results_0.25_gender_df %>%
+  filter(model %in% models) %>%
   group_by(task, .metric) %>%
-  summarise(mean_all = mean(.estimate),
-            mean_male = mean(male), mean_female = mean(female), mean_diff = mean(priv_diff))
+  summarise(mean_all =round(mean(.estimate), round),
+            mean_male = round(mean(male), round), mean_female = round(mean(female),round), mean_diff = round(mean(priv_diff),round))
+write_xlsx(averages_0.25_gender,"models\\averages\\averages_0.25_gender.xlsx")
 
 averages_0.25_stategroup <- results_0.25_stategroup_df %>%
+  filter(model %in% models) %>%
   group_by(task, .metric) %>%
-  summarise(mean_all = mean(.estimate),
-            mean_AUT = mean(AUT), mean_nAUT = mean(nAUT), mean_diff = mean(priv_diff))
+  summarise(mean_all = round(mean(.estimate),round),
+            mean_AUT = round(mean(AUT),round), mean_nAUT = round(mean(nAUT),round), mean_diff = round(mean(priv_diff),round))
+write_xlsx(averages_0.25_stategroup,"models\\averages\\averages_0.25_stategroup.xlsx")
+
+# Averages by model ____________________________________________________________________________________________________
+averages_0.66_gender_model <- results_0.66_gender_df %>%
+  group_by(model, .metric) %>%
+  summarise(mean_all =round(mean(.estimate), round),
+            mean_male = round(mean(male), round), mean_female = round(mean(female),round), mean_diff = round(mean(priv_diff),round))
+write_xlsx(averages_0.66_gender_model,"models\\averages\\averages_0.66_gender_model.xlsx")
+
+averages_0.66_stategroup_model <- results_0.66_stategroup_df %>%
+  group_by(model, .metric) %>%
+  summarise(mean_all = round(mean(.estimate),round),
+            mean_AUT = round(mean(AUT),round), mean_nAUT = round(mean(nAUT),round), mean_diff = round(mean(priv_diff),round))
+write_xlsx(averages_0.66_stategroup_model,"models\\averages\\averages_0.66_stategroup_model.xlsx")
+
+
+averages_0.25_gender_model <- results_0.25_gender_df %>%
+  group_by(model, .metric) %>%
+  summarise(mean_all =round(mean(.estimate), round),
+            mean_male = round(mean(male), round), mean_female = round(mean(female),round), mean_diff = round(mean(priv_diff),round))
+write_xlsx(averages_0.25_gender_model,"models\\averages\\averages_0.25_gender_model.xlsx")
+
+averages_0.25_stategroup_model <- results_0.25_stategroup_df %>%
+  group_by(model, .metric) %>%
+  summarise(mean_all = round(mean(.estimate),round),
+            mean_AUT = round(mean(AUT),round), mean_nAUT = round(mean(nAUT),round), mean_diff = round(mean(priv_diff),round))
+write_xlsx(averages_0.25_stategroup_model,"models\\averages\\averages_0.25_stategroup_model.xlsx")
 
 # Heatmap --------------------------------------------------------------------------------------------------------------
 # use self-made function for heatmap generation with ggplot
