@@ -50,7 +50,7 @@ tab_gender <- table(data$GENDER, data$EMPLOYMENTDAYS)
 round(100*prop.table(tab_gender, 1),1)
 
 # prop.test implements the Pearson’s chi-square statistics for independence
-b <- chisq.test(data$GENDER, data$EMPLOYMENTDAYS)
+chisq.test(data$GENDER, data$EMPLOYMENTDAYS)
 fisher.test(tab_gender)
 
 tab_gender
@@ -114,11 +114,22 @@ ggplot(data, aes(x = relig_islam, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)
 ggplot(data, aes(x = relig_islam, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = "fill")
 
+# Migration background
+table(data$mighint12g_new, useNA = "always")
+ggplot(data, aes(x = mighint12g_new, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = position_dodge(width = 0.5))
+ggplot(data, aes(x = mighint12g_new, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
+  geom_bar(position = "fill")
+
 
 ci_plot(data, STATEGROUP)
 ci_plot(data, relig) +
   theme(axis.title.x=element_blank(),axis.title.y=element_blank(),
         axis.text.x = element_text(angle = 70, vjust = 1, hjust=1))
+ci_plot(data, mighint12g_new)
+
+
+chisq.test(data$stategroup01, data$EMPLOYMENTDAYS)
 
 
 # RGS Typ --------------------------------------------------------------------------------------------------------------
@@ -232,7 +243,7 @@ ggplot(data, aes(x = as.factor(depressrisk_WHO), group = EMPLOYMENTDAYS, fill = 
 
 jobfind_rate <- mean(data$EMPLOYMENTDAYS == ">=90 Days")
 
-var_list <- c("stategroup01", "AGEGROUP", "CHILDCARE", "IMPAIRMENT", "EDUCATION")
+var_list <- c("STATEGROUP", "AGEGROUP", "CHILDCARE", "IMPAIRMENT", "EDUCATION", "mighint12g_new")
 
 rates <- data %>%
   group_by(GENDER) %>%
