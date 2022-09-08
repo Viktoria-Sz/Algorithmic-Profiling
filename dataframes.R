@@ -172,6 +172,22 @@ df1$estimate_0.66 = as.factor(ifelse(df1$probabilities >= 0.66, 1, 0))
 df1$estimate_0.5 = as.factor(ifelse(df1$probabilities >= 0.5, 1, 0))
 df1$estimate_0.25 = as.factor(ifelse(df1$probabilities >= 0.25, 1, 0))
 
+# rename model
+model_order <- c("Featureless", "OR", "Logistic Regression", "encode.colapply.classif.glmnet.tuned",
+                 "Random Forest.tuned", "Decision Tree.tuned",
+                 "encode.colapply.classif.xgboost.tuned", "classif.kknn.tuned"
+)
+df1$model = factor(df1$model, level = rev(model_order))
+
+df1$model <- fct_recode(df1$model,
+                             LogisticRegression =  "Logistic Regression",
+                             PenalizedLR = "encode.colapply.classif.glmnet.tuned",
+                             RandomForest = "Random Forest.tuned",
+                             DecisionTree = "Decision Tree.tuned",
+                             xgboost = "encode.colapply.classif.xgboost.tuned",
+                             KNN = "classif.kknn.tuned",
+                             Documentation = "OR")
+
 save(df1, file="data/df1.Rda")
 
 # Dataframe variante 3 __________________________________________________________________________________________________

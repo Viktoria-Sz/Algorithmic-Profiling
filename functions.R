@@ -1,17 +1,31 @@
 # FUNCTIONS ############################################################################################################
 
 # Heatmap ==============================================================================================================
+library(RColorBrewer)
+
+colorRdYlBu <- c("#D73027", "#E75237", 
+                 #"#F57647", "#FA9B58" "#FDBC6E" "#FDD889" "#FEEDA4" 
+                 "#FFFFBF" ,
+                 # "#EDF8DF" "#D8EFF5" "#BAE0ED" "#9BCCE2", "#7BB3D4", 
+                 "#5F95C4", "#4575B4")
+
 heatmap <- function(df, var_y, var_x, fill) {
   var_x <- enquo(var_x) # Variable verwendbar machen in ggplot
   var_y <- enquo(var_y) # Variable verwendbar machen in ggplot
   fill <- enquo(fill) # Variable verwendbar machen in ggplot
   
-  ggplot(df, aes(y= !!var_y, x = !!var_x, fill = !!fill)) +
+  df_filtered <- df %>%
+    # filter(model %in% models) %>%
+    filter(.metric %in% selected_measures)
+  
+  ggplot(df_filtered, aes(y= !!var_y, x = !!var_x, fill = !!fill)) +
     geom_tile() +
+    theme_bw() +
     theme(axis.title.x=element_blank(),axis.title.y=element_blank(),
-          axis.text.x = element_text(angle = 70, vjust = 1, hjust=1)) + 
+          # axis.text.x = element_text(angle = 70, vjust = 1, hjust=1)
+          ) + 
     geom_text(aes(label = round(!!fill, 2))) +
-    scale_fill_distiller(palette = "OrRd", direction = -1, limits = c(0,1)) 
+    scale_fill_distiller(palette = "YlGn", direction = 1, limits = c(0,1), na.value="white") 
 }
 
 heatmap_diff <- function(df, var_y, var_x, fill) {
@@ -19,13 +33,20 @@ heatmap_diff <- function(df, var_y, var_x, fill) {
   var_y <- enquo(var_y) # Variable verwendbar machen in ggplot
   fill <- enquo(fill) # Variable verwendbar machen in ggplot
   
-  ggplot(df, aes(y= !!var_y, x = !!var_x, fill = !!fill)) +
+  df_filtered <- df %>%
+    filter(model %in% models) %>%
+    filter(.metric %in% selected_measures)
+  
+  ggplot(df_filtered, aes(y= !!var_y, x = !!var_x, fill = !!fill)) +
     geom_tile() +
+    theme_bw() +
     theme(axis.title.x=element_blank(),axis.title.y=element_blank(),
-          axis.text.x = element_text(angle = 70, vjust = 1, hjust=1)) + 
+          # axis.text.x = element_text(angle = 70, vjust = 1, hjust=1)
+          ) + 
     geom_text(aes(label = round(!!fill, 2))) +
-    scale_fill_distiller(palette = "RdYlBu"
-                         , direction = 1, limits = c(-0.5,0.5))
+    scale_fill_gradientn(colours = colorRdYlBu ,limits=c(-1,1), na.value="white")
+    # scale_fill_distiller(palette = "RdYlBu"
+    #                      , direction = 1, limits = c(-0.5,0.5))
 }
 
 # Performance Measures =================================================================================================
@@ -139,20 +160,18 @@ performance <- function(df, tasks, label, protected, privileged, unprivileged, m
                        "f_meas" # fbeta, with beta = 1
     )
     measures$.metric = factor(measures$.metric, level = metrics_order)
-
-    model_order <- c("Featureless", "OR", "Logistic Regression", "encode.colapply.classif.glmnet.tuned",
-                     "Random Forest.tuned", "Decision Tree.tuned",
-                     "encode.colapply.classif.xgboost.tuned", "classif.kknn.tuned"
-    )
-    measures$model = factor(measures$model, level = rev(model_order))
-
-    measures$model <- fct_recode(measures$model,
-                                 LogisticRegression =  "Logistic Regression",
-                                 PenalizedLR = "encode.colapply.classif.glmnet.tuned",
-                                 RandomForest = "Random Forest.tuned",
-                                 DecisionTree = "Decision Tree.tuned",
-                                 xgboost = "encode.colapply.classif.xgboost.tuned",
-                                 KKNN = "classif.kknn.tuned")
+    
+    measures$.metric <- fct_recode(measures$.metric,
+                                   Prevalence = "detection_prevalence",
+                                   Accuracy = "accuracy",
+                                   ROC_AUC = "roc_auc",
+                                   PR_AUC = "pr_auc",
+                                   TPR_Recall_Sens = "sens", # sensitivity, recall, TPR
+                                   TNR_Spec = "spec", # specificity, TNR
+                                   PPV_Precision = "ppv", # Precision, Positive predictive value PPV
+                                   NPV = "npv",
+                                   F1_Score = "f_meas" # fbeta, with beta = 1
+                                   )
 
     
     # append to list over tasks
@@ -182,6 +201,7 @@ binom_stats <- function(x, ...) {
              Lower = res$conf.int[1],
              Upper = res$conf.int[2])
 }
+
 
 jobfind_rate <- mean(data$EMPLOYMENTDAYS == ">=90 Days")
 

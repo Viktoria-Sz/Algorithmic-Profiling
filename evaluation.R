@@ -6,6 +6,8 @@ library(fairness) # fairness
 library(yardstick) # performance
 library(jtools) # for plotting coefficients
 #library(pROC)
+library(writexl)
+library(ggpubr)
 
 # Load other scripts ---------------------------------------------------------------------------------------------------
 source("functions.R", encoding="utf-8") # for predefined feature sets
@@ -21,9 +23,23 @@ data_test = data[test_ids,]
 #setequal(data_test$EMPLOYMENTDAYS, df3$truth)
 data_test$test_ids = test_ids
 
+df1 <- filter(df1, model != "DecisionTree")
+
+task_list <- unique(df1$task)
+models <- c("LogisticRegression", "PenalizedLR", "RandomForest", "xgboost", "KNN")
+selected_measures <- c("Prevalence",
+                       "Accuracy",
+                       "ROC_AUC",
+                       "TPR_Recall_Sens", # sensitivity, recall, TPR
+                       "FNR",
+                       "TNR_Spec", # specificity, TNR
+                       "FPR",
+                       "PPV_Precision", # Precision, Positive predictive value PPV
+                       "NPV"
+                       )
+
 # load full benchmark
 #bmr = readRDS("models/bmr_full.Rds") 
-
 
 # Make data table from benchmark result for further evaluation ---------------------------------------------------------
 tab_bmr <- as.data.table(bmr)
@@ -232,8 +248,88 @@ for(i in unique(df1$task)){
 }
 
 
+# Prevalence Prediction / Demographic Parity ---------------------------------------------------------------------------
+jobpred_rate_0.25 <- mean(df1$estimate_0.25 == 1, na.rm = TRUE)
+
+binom_stats_pred <- function(x, ...) {
+  x <- x$estimate_0.25[!is.na(x$estimate_0.25)]
+  res <- prop.test(x = sum(x == 1), n = length(x), ...)
+  data.frame(Proportion  = unname(res$estimate), 
+             Lower = res$conf.int[1],
+             Upper = res$conf.int[2])
+}
+
+rates_gender <- df1 %>%
+  filter(task == "AMS extended") %>%
+  filter(model %in% models) %>%
+  group_by(gender) %>%
+  do(binom_stats_pred(.)) %>%
+  arrange(Proportion) %>%
+  ungroup() %>%
+  rename(char = gender) %>%
+  mutate(task = "AMS extended", var = "gender")
+
+rates_mig <- df1 %>%
+  filter(task == "AMS extended") %>%
+  filter(model %in% models) %>%
+  group_by(stategroup01) %>%
+  do(binom_stats_pred(.)) %>%
+  arrange(Proportion) %>%
+  ungroup() %>%
+  rename(char = stategroup01) %>%
+  mutate(task = "AMS extended", var = "stategroup")
+
+for(i in task_list[-1]){
+  rates_new_gender <- df1 %>%
+    filter(task == i) %>%
+    filter(model %in% models) %>%
+    group_by(gender) %>%
+    do(binom_stats_pred(.)) %>%
+    arrange(Proportion) %>%
+    ungroup() %>%
+    rename(char = gender) %>%
+    mutate(task = i, var = "gender")
+  rates_gender <- rbind(rates_gender, rates_new_gender)
+  
+  rates_new_mig <- df1 %>%
+    filter(task == i) %>%
+    filter(model %in% models) %>%
+    group_by(stategroup01) %>%
+    do(binom_stats_pred(.)) %>%
+    arrange(Proportion) %>%
+    ungroup() %>%
+    rename(char = stategroup01) %>%
+    mutate(task = i, var = "stategroup")
+  rates_mig <- rbind(rates_mig, rates_new_mig)
+}
+rates = rbind(rates_gender, rates_mig)
+
+ggplot(rates, aes(x = char, y = Proportion, colour = var)) +
+  geom_hline(yintercept = jobpred_rate_0.25, col = "red", alpha = .35, lty = 2) + 
+  geom_point(size = 5) +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper)
+                , width = 0.3, size = 2) +
+  theme(axis.text = element_text(size = 8)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  facet_grid(cols = vars(task), scales = "free") +
+  # facet_grid(rows = vars(task), scales = "free") +
+  # coord_flip() +
+  theme(legend.position = "none", axis.title.x = element_blank())
+
+
+
 # Measures -------------------------------------------------------------------------------------------------------------
-task_list <- unique(df1$task)
+tasks_gender <- c("AMS full", "AMS youth", "AMS ext", "diverse", "other_PES")
+tasks_wo_gender <- c("filtering_cmim" ,"filtering_disr", "filtering_jmi", "filtering_mrmr", "filtering_relief")
+
+tasks_stategroup <- c("AMS full", "AMS youth", "AMS ext", "diverse", "other_PES", 
+                      "filtering_cmim" ,"filtering_disr", "filtering_jmi", "filtering_mrmr" )
+tasks_wo_stategroup <- c("filtering_relief")
+
+tasks_AMS <- c("AMS full", "AMS youth", "AMS ext")
+tasks_diverse <- c("diverse", "other_PES")
+tasks_character <- c("attitudes", "behavior", "characteristics_filter", "personality")
+tasks_filtering <- c("filtering_cmim" ,"filtering_disr", "filtering_jmi", "filtering_mrmr", "filtering_relief")
 
 # use self-made function for performance measure computation
 # 66 % low and middle group
@@ -242,13 +338,87 @@ results_0.66_gender <- performance(df1, tasks = task_list, label = estimate_0.66
                     protected = gender, privileged = "male", unprivileged = "female", measure_list)
 results_0.66_gender_df <- bind_rows(results_0.66_gender, .id = "task")
 
+
 measure_list = list()
 results_0.66_stategroup <- performance(df1, tasks = task_list, label = estimate_0.66,
                     protected = stategroup01, privileged = "AUT", unprivileged = "nAUT", measure_list)
 results_0.66_stategroup_df <- bind_rows(results_0.66_stategroup, .id = "task")
 
 
-# 25 % low and middle group
+# Best accuracy ________________________________________________________________________________________________________
+results_0.66_gender_df %>%
+  filter(.metric == "Accuracy") %>%
+  arrange(.estimate)
+results_0.66_gender_df %>%
+  filter(.metric == "Accuracy") %>%
+  arrange(desc(.estimate))
+
+# Best ROC_AUC ________________________________________________________________________________________________________
+results_0.66_gender_df %>%
+  filter(.metric == "ROC_AUC") %>%
+  arrange(.estimate)
+results_0.66_gender_df %>%
+  filter(.metric == "ROC_AUC") %>%
+  arrange(desc(.estimate))
+
+# Means by task groups -------------------------------------------------------------------------------------------------
+# AMS
+results_0.66_gender_df %>%
+  filter(task %in% tasks_AMS) %>%
+  filter(.metric == "Accuracy" | .metric == "ROC_AUC") %>%
+  group_by(.metric) %>%
+  summarise(mean = mean(.estimate))
+
+# Diverse
+results_0.66_gender_df %>%
+  filter(task %in% tasks_diverse) %>%
+  filter(.metric == "Accuracy" | .metric == "ROC_AUC") %>%
+  group_by(.metric) %>%
+  summarise(mean = mean(.estimate))
+
+# Character
+results_0.66_gender_df %>%
+  filter(task %in% tasks_character) %>%
+  filter(.metric == "Accuracy" | .metric == "ROC_AUC") %>%
+  group_by(.metric) %>%
+  summarise(mean = mean(.estimate))
+
+# Filtering
+results_0.66_gender_df %>%
+  filter(task %in% tasks_filtering) %>%
+  filter(.metric == "Accuracy" | .metric == "ROC_AUC") %>%
+  group_by(.metric) %>%
+  summarise(mean = mean(.estimate))
+
+# Fairness through unawarness: With gender
+results_0.66_gender_df %>%
+  filter(task %in% tasks_gender) %>%
+  group_by(task) %>%
+  summarise(sum = sum(abs(priv_diff), na.rm = TRUE)) %>%
+  summarise(mean = mean(sum))
+
+# Fairness through unawarness: Without gender
+results_0.66_gender_df %>%
+  filter(task %in% tasks_wo_gender) %>%
+  group_by(task) %>%
+  summarise(sum = sum(abs(priv_diff), na.rm = TRUE)) %>%
+  summarise(mean = mean(sum))
+
+# Fairness through unawarness: With stategroup
+results_0.66_stategroup_df %>%
+  filter(task %in% tasks_stategroup) %>%
+  group_by(task) %>%
+  summarise(sum = sum(abs(priv_diff), na.rm = TRUE)) %>%
+  summarise(mean = mean(sum))
+
+# Fairness through unawarness: Without stategroup
+results_0.66_stategroup_df %>%
+  filter(task %in% tasks_wo_stategroup) %>%
+  group_by(task) %>%
+  summarise(sum = sum(abs(priv_diff), na.rm = TRUE)) %>%
+  summarise(mean = mean(sum))
+
+# 25 % low and middle group --------------------------------------------------------------------------------------------
 measure_list = list()
 results_0.25_gender <- performance(df1, tasks = task_list, label = estimate_0.25,
                                    protected = gender, privileged = "male", unprivileged = "female", measure_list)
@@ -260,20 +430,16 @@ results_0.25_stategroup <- performance(df1, tasks = task_list, label = estimate_
 results_0.25_stategroup_df <- bind_rows(results_0.25_stategroup, .id = "task")
 
 
-
-# Averages -------------------------------------------------------------------------------------------------------------
-models <- c("LogisticRegression", "PenalizedLR", "RandomForest", "xgboost", "KKNN")
-
-library("writexl")
-
-# Averages by task _____________________________________________________________________________________________________
+# Averages =============================================================================================================
 round <- 3
+
+# Averages by task -----------------------------------------------------------------------------------------------------
 averages_0.66_gender <- results_0.66_gender_df %>%
   filter(model %in% models) %>%
   group_by(task, .metric) %>%
   summarise(mean_all =round(mean(.estimate), round),
             mean_male = round(mean(male), round), mean_female = round(mean(female),round), mean_diff = round(mean(priv_diff),round))
-write_xlsx(averages_0.66_gender,"models\\averages\\averages_0.66_gender.xlsx")
+# write_xlsx(averages_0.66_gender,"models\\averages\\averages_0.66_gender.xlsx")
 
 
 averages_0.66_stategroup <- results_0.66_stategroup_df %>%
@@ -281,7 +447,7 @@ averages_0.66_stategroup <- results_0.66_stategroup_df %>%
   group_by(task, .metric) %>%
   summarise(mean_all = round(mean(.estimate),round),
             mean_AUT = round(mean(AUT),round), mean_nAUT = round(mean(nAUT),round), mean_diff = round(mean(priv_diff),round))
-write_xlsx(averages_0.66_stategroup,"models\\averages\\averages_0.66_stategroup.xlsx")
+# write_xlsx(averages_0.66_stategroup,"models\\averages\\averages_0.66_stategroup.xlsx")
 
 
 averages_0.25_gender <- results_0.25_gender_df %>%
@@ -289,40 +455,92 @@ averages_0.25_gender <- results_0.25_gender_df %>%
   group_by(task, .metric) %>%
   summarise(mean_all =round(mean(.estimate), round),
             mean_male = round(mean(male), round), mean_female = round(mean(female),round), mean_diff = round(mean(priv_diff),round))
-write_xlsx(averages_0.25_gender,"models\\averages\\averages_0.25_gender.xlsx")
+# write_xlsx(averages_0.25_gender,"models\\averages\\averages_0.25_gender.xlsx")
 
 averages_0.25_stategroup <- results_0.25_stategroup_df %>%
   filter(model %in% models) %>%
   group_by(task, .metric) %>%
   summarise(mean_all = round(mean(.estimate),round),
             mean_AUT = round(mean(AUT),round), mean_nAUT = round(mean(nAUT),round), mean_diff = round(mean(priv_diff),round))
-write_xlsx(averages_0.25_stategroup,"models\\averages\\averages_0.25_stategroup.xlsx")
+# write_xlsx(averages_0.25_stategroup,"models\\averages\\averages_0.25_stategroup.xlsx")
 
-# Averages by model ____________________________________________________________________________________________________
+# Averages by model 0.66 -------------------------------------------------------------------------------------------------
 averages_0.66_gender_model <- results_0.66_gender_df %>%
   group_by(model, .metric) %>%
   summarise(mean_all =round(mean(.estimate), round),
             mean_male = round(mean(male), round), mean_female = round(mean(female),round), mean_diff = round(mean(priv_diff),round))
-write_xlsx(averages_0.66_gender_model,"models\\averages\\averages_0.66_gender_model.xlsx")
+# write_xlsx(averages_0.66_gender_model,"models\\averages\\averages_0.66_gender_model.xlsx")
 
 averages_0.66_stategroup_model <- results_0.66_stategroup_df %>%
   group_by(model, .metric) %>%
   summarise(mean_all = round(mean(.estimate),round),
             mean_AUT = round(mean(AUT),round), mean_nAUT = round(mean(nAUT),round), mean_diff = round(mean(priv_diff),round))
-write_xlsx(averages_0.66_stategroup_model,"models\\averages\\averages_0.66_stategroup_model.xlsx")
+# write_xlsx(averages_0.66_stategroup_model,"models\\averages\\averages_0.66_stategroup_model.xlsx")
 
+# Best measures models _________________________________________________________________________________________________
+# Best accuracy
+averages_0.66_gender_model %>%
+  group_by(model) %>%
+  filter(.metric == "Accuracy") %>%
+  arrange(desc(mean_all))
+
+# Best ROC-AUC
+averages_0.66_gender_model %>%
+  group_by(model) %>%
+  filter(.metric == "ROC_AUC") %>%
+  arrange(desc(mean_all))
+
+# Gender diffs
+averages_0.66_gender_model %>%
+  group_by(model) %>%
+  summarise(sum = sum(abs(mean_diff), na.rm = TRUE)) %>%
+  arrange(sum)
+
+# stategroup diffs
+averages_0.66_stategroup_model %>%
+  group_by(model) %>%
+  summarise(sum = sum(abs(mean_diff), na.rm = TRUE)) %>%
+  arrange(sum)
+
+
+# Averages by model 0.25 -----------------------------------------------------------------------------------------------
 
 averages_0.25_gender_model <- results_0.25_gender_df %>%
   group_by(model, .metric) %>%
   summarise(mean_all =round(mean(.estimate), round),
             mean_male = round(mean(male), round), mean_female = round(mean(female),round), mean_diff = round(mean(priv_diff),round))
-write_xlsx(averages_0.25_gender_model,"models\\averages\\averages_0.25_gender_model.xlsx")
+# write_xlsx(averages_0.25_gender_model,"models\\averages\\averages_0.25_gender_model.xlsx")
 
 averages_0.25_stategroup_model <- results_0.25_stategroup_df %>%
   group_by(model, .metric) %>%
   summarise(mean_all = round(mean(.estimate),round),
             mean_AUT = round(mean(AUT),round), mean_nAUT = round(mean(nAUT),round), mean_diff = round(mean(priv_diff),round))
-write_xlsx(averages_0.25_stategroup_model,"models\\averages\\averages_0.25_stategroup_model.xlsx")
+# write_xlsx(averages_0.25_stategroup_model,"models\\averages\\averages_0.25_stategroup_model.xlsx")
+
+# Best measures models _________________________________________________________________________________________________
+# Best accuracy
+averages_0.25_gender_model %>%
+  group_by(model) %>%
+  filter(.metric == "Accuracy") %>%
+  arrange(desc(mean_all))
+
+# Best FNR
+averages_0.25_gender_model %>%
+  group_by(model) %>%
+  filter(.metric == "FNR") %>%
+  arrange(mean_all)
+
+# Gender diffs
+averages_0.25_gender_model %>%
+  group_by(model) %>%
+  summarise(sum = sum(abs(mean_diff), na.rm = TRUE)) %>%
+  arrange(sum)
+
+# stategroup diffs
+averages_0.25_stategroup_model %>%
+  group_by(model) %>%
+  summarise(sum = sum(abs(mean_diff), na.rm = TRUE)) %>%
+  arrange(sum)
 
 # Heatmap --------------------------------------------------------------------------------------------------------------
 # use self-made function for heatmap generation with ggplot
@@ -334,6 +552,8 @@ for(i in task_list){
     ggtitle(i)
   heatmap_list_0.66 = append(heatmap_list_0.66,  list(p))
 }
+names(heatmap_list_0.66) <- task_list
+
 
 # 0.66 % middle and high group with gender ________________________________________________________________________________
 heatmap_list_0.66_male = list()
@@ -351,9 +571,10 @@ for(i in task_list){
 heatmap_list_0.66_genderdiff = list()
 for(i in task_list){
   p = heatmap_diff(results_0.66_gender[[i]], model, .metric, priv_diff) +
-    ggtitle(i)
+    labs(subtitle = "Gender differences (Male - Female)")
   heatmap_list_0.66_genderdiff = append(heatmap_list_0.66_genderdiff,  list(p))
 }
+names(heatmap_list_0.66_genderdiff) <- task_list
 
 # 0.66 % middle and high group with stategroup ________________________________________________________________________________
 heatmap_list_0.66_AUT = list()
@@ -371,58 +592,97 @@ for(i in task_list){
 heatmap_list_0.66_statediff = list()
 for(i in task_list){
   p = heatmap_diff(results_0.66_stategroup[[i]], model, .metric, priv_diff) +
-    ggtitle(i)
+    labs(subtitle = "Stategroup differences (Austrian - non-Austraian)") 
   heatmap_list_0.66_statediff = append(heatmap_list_0.66_statediff,  list(p))
 }
+names(heatmap_list_0.66_statediff) <- task_list
 
+# All together _________________________________________________________________________________________________________
+heatmap_list_0.66_grid = list()
+for(i in task_list){
+  p <- ggarrange(heatmap_list_0.66[[i]], 
+                 heatmap_list_0.66_genderdiff[[i]], 
+                 heatmap_list_0.66_statediff[[i]], ncol = 1)
+  name = paste0("plots/", i, "_0.66_heatmap.png")
+  # ggsave(name, p, width = 7.50, height = 11.40, dpi = 1000)
+  ggsave(name, p, width = 9.50, height = 14.40, dpi = 1500)
+  heatmap_list_0.66_grid = append(heatmap_list_0.66_grid,  list(p))
+}
+
+ggarrange(heatmap_list_0.66[[1]],
+          heatmap_list_0.66_genderdiff[[1]],
+          heatmap_list_0.66_statediff[[1]], ncol = 1)
 
 # 0.25 % ---------------------------------------------------------------------------------------------------------------
 heatmap_list_0.25 = list()
 for(i in task_list){
+  df_filtered <- filter(results_0.25_gender[[i]], model != "Documentation")
   p = heatmap(results_0.25_gender[[i]], model, .metric, .estimate) +
     ggtitle(i)
   heatmap_list_0.25 = append(heatmap_list_0.25,  list(p))
 }
+names(heatmap_list_0.25) <- task_list
 
 # 0.25 % middle and low group with gender ________________________________________________________________________________
 heatmap_list_0.25_male = list()
 for(i in task_list){
+  df_filtered <- filter(results_0.25_gender[[i]], model != "Documentation")
   p = heatmap(results_0.25_gender[[i]], model, .metric, male) +
     ggtitle(i)
   heatmap_list_0.25_male = append(heatmap_list_0.25_male,  list(p))
 }
 heatmap_list_0.25_female = list()
 for(i in task_list){
+  df_filtered <- filter(results_0.25_gender[[i]], model != "Documentation")
   p = heatmap(results_0.25_gender[[i]], model, .metric, female) +
     ggtitle(i)
   heatmap_list_0.25_female = append(heatmap_list_0.25_female,  list(p))
 }
 heatmap_list_0.25_genderdiff = list()
 for(i in task_list){
+  df_filtered <- filter(results_0.25_gender[[i]], model != "Documentation")
   p = heatmap_diff(results_0.25_gender[[i]], model, .metric, priv_diff) +
-    ggtitle(i)
+    labs(subtitle = "Gender differences (Male - Female)")
   heatmap_list_0.25_genderdiff = append(heatmap_list_0.25_genderdiff,  list(p))
 }
+names(heatmap_list_0.25_genderdiff) <- task_list
 
 # 0.25 % middle and low group with stategroup ________________________________________________________________________________
 heatmap_list_0.25_AUT = list()
 for(i in task_list){
+  df_filtered <- filter(results_0.25_stategroup[[i]], model != "Documentation")
   p = heatmap(results_0.25_stategroup[[i]], model, .metric, AUT) +
     ggtitle(i)
   heatmap_list_0.25_AUT = append(heatmap_list_0.25_AUT,  list(p))
 }
 heatmap_list_0.25_nAUT = list()
 for(i in task_list){
+  df_filtered <- filter(results_0.25_stategroup[[i]], model != "Documentation")
   p = heatmap(results_0.25_stategroup[[i]], model, .metric, nAUT) +
     ggtitle(i)
   heatmap_list_0.25_nAUT = append(heatmap_list_0.25_nAUT,  list(p))
 }
 heatmap_list_0.25_statediff = list()
 for(i in task_list){
+  df_filtered <- filter(results_0.25_stategroup[[i]], model != "Documentation")
   p = heatmap_diff(results_0.25_stategroup[[i]], model, .metric, priv_diff) +
-    ggtitle(i)
+    labs(subtitle = "Stategroup differences (Austrian - non-Austraian)") 
   heatmap_list_0.25_statediff = append(heatmap_list_0.25_statediff,  list(p))
 }
+names(heatmap_list_0.25_statediff) <- task_list
+
+# All together _________________________________________________________________________________________________________
+heatmap_list_0.25_grid = list()
+for(i in task_list){
+  p <- ggarrange(heatmap_list_0.25[[i]], 
+                 heatmap_list_0.25_genderdiff[[i]], 
+                 heatmap_list_0.25_statediff[[i]], ncol = 1)
+  name = paste0("plots/", i, "_0.25_heatmap.png")
+  ggsave(name, p, width = 9.50, height = 14.40, dpi = 1500)
+  
+  heatmap_list_0.25_grid = append(heatmap_list_0.25_grid,  list(p))
+}
+
 
 # All heatmaps ---------------------------------------------------------------------------------------------------------
 heatmap_list_0.66
@@ -434,7 +694,6 @@ heatmap_list_0.66_AUT
 heatmap_list_0.66_nAUT
 heatmap_list_0.66_statediff
 
-
 heatmap_list_0.25
 
 heatmap_list_0.25_male
@@ -444,15 +703,8 @@ heatmap_list_0.25_AUT
 heatmap_list_0.25_nAUT
 heatmap_list_0.25_statediff
 
-# Test heatmap
-library(RColorBrewer)
-ggplot(results_0.25_stategroup[[1]], aes(y= model, x = .metric, fill = priv_diff)) +
-  geom_tile() +
-  theme(axis.title.x=element_blank(),axis.title.y=element_blank(),
-        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1)) + 
-  geom_text(aes(label = round(priv_diff, 2))) +
-  scale_fill_distiller(palette = colorRampPalette(brewer.pal(9, "RdYlBu"))(12)[6:12] # "RdYlBu"
-                       , direction = 1, limits = c(-1,1))
+
+
 
 # RESTE ################################################################################################################
 df1[1:10, c("task", "model", "probabilities")]
