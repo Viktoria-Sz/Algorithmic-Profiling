@@ -249,8 +249,6 @@ for(i in unique(df1$task)){
 
 
 # Prevalence Prediction / Demographic Parity ---------------------------------------------------------------------------
-jobpred_rate_0.25 <- mean(df1$estimate_0.25 == 1, na.rm = TRUE)
-
 binom_stats_pred <- function(x, ...) {
   x <- x$estimate_0.25[!is.na(x$estimate_0.25)]
   res <- prop.test(x = sum(x == 1), n = length(x), ...)
@@ -268,6 +266,8 @@ rates_gender <- df1 %>%
   ungroup() %>%
   rename(char = gender) %>%
   mutate(task = "AMS extended", var = "gender")
+
+jobpred_rate_0.25 <- mean(rates_gender$Proportion, na.rm = TRUE)
 
 rates_mig <- df1 %>%
   filter(task == "AMS extended") %>%
@@ -304,18 +304,20 @@ for(i in task_list[-1]){
 }
 rates = rbind(rates_gender, rates_mig)
 
-ggplot(rates, aes(x = char, y = Proportion, colour = var)) +
+demographic_parity_0.25 <- ggplot(rates, aes(x = char, y = Proportion, colour = var)) +
   geom_hline(yintercept = jobpred_rate_0.25, col = "red", alpha = .35, lty = 2) + 
+  theme_bw() +
   geom_point(size = 5) +
   geom_errorbar(aes(ymin = Lower, ymax = Upper)
                 , width = 0.3, size = 2) +
   theme(axis.text = element_text(size = 8)) +
-  scale_y_continuous(limits = c(0, 1)) +
-  facet_grid(cols = vars(task), scales = "free") +
-  # facet_grid(rows = vars(task), scales = "free") +
-  # coord_flip() +
-  theme(legend.position = "none", axis.title.x = element_blank())
+  scale_y_continuous(limits = c(0.4, 1), breaks = scales::pretty_breaks(n = 5)) +
+  # facet_grid(cols = vars(task), scales = "free") +
+  facet_grid(rows = vars(task), scales = "free") +
+  coord_flip() +
+  theme(legend.position = "none", axis.title.x = element_blank(), axis.title.y = element_blank())
 
+ggsave("plots/demographic_parity_0.25.png", demographic_parity_0.25, width = 9.50, height = 14.40, dpi = 1500)
 
 
 # Measures -------------------------------------------------------------------------------------------------------------

@@ -238,14 +238,12 @@ ggplot(data, aes(x = as.factor(depressrisk_WHO), group = EMPLOYMENTDAYS, fill = 
 
 # Other descriptives ###################################################################################################
 # CI-Plots =============================================================================================================
-
-
-
 jobfind_rate <- mean(data$EMPLOYMENTDAYS == ">=90 Days")
 
-var_list <- c("STATEGROUP", "AGEGROUP", "CHILDCARE", "IMPAIRMENT", "EDUCATION", "mighint12g_new")
+var_list <- c("STATEGROUP", "AGEGROUP", "CHILDCARE", "IMPAIRMENT", "EDUCATION")
+data_rates <- filter(data, !is.na(EDUCATION))
 
-rates <- data %>%
+rates <- data_rates %>%
   group_by(GENDER) %>%
   do(binom_stats(.)) %>%
   arrange(Proportion) %>%
@@ -254,8 +252,8 @@ rates <- data %>%
   mutate(var = "GENDER")
 
 for(i in var_list){
-  rates_new <- data %>%
-    group_by(data[i]) %>%
+  rates_new <- data_rates %>%
+    group_by(data_rates[i]) %>%
     do(binom_stats(.)) %>%
     arrange(Proportion) %>%
     ungroup() %>%
@@ -265,39 +263,22 @@ for(i in var_list){
 }
 
 
-ggplot(rates, aes(x = char, y = Proportion, colour = var)) +
+prevalence <- ggplot(rates, aes(x = char, y = Proportion, colour = var)) +
   geom_hline(yintercept = jobfind_rate, col = "red", alpha = .35, lty = 2) + 
   geom_point(size = 5) +
+  theme_bw() +
   geom_errorbar(aes(ymin = Lower, ymax = Upper)
                 , width = 0.3, size = 2) +
   theme(axis.text = element_text(size = 8)) +
-  scale_y_continuous(limits = c(0, 0.6)) +
+  scale_y_continuous(limits = c(0, 0.6), breaks = scales::pretty_breaks(n = 5)) +
   facet_grid(cols = vars(var), scales = "free") +
   # facet_grid(rows = vars(var), scales = "free") +
   # coord_flip() +
-  theme(legend.position = "none", axis.title.x = element_blank())
-  
+  theme(legend.position = "none", axis.title.x = element_blank(), axis.title.y = element_blank())
 
-ci_plot <- function(df, var){
-  var <- enquo(var)
-  
-  rates <- df %>%
-    group_by(!!var) %>%
-    do(binom_stats(.)) %>%
-    arrange(Proportion) %>%
-    ungroup() #%>%
-  # mutate(#var = gsub("GENDER_", "", var),
-  #        !!var = reorder(factor(!!var), Proportion))
-  
-  ggplot(rates, aes(x = !!var, y = Proportion)) +
-    geom_hline(yintercept = jobfind_rate, col = "red", alpha = .35, lty = 2) + 
-    geom_point() +
-    geom_errorbar(aes(ymin = Lower, ymax = Upper), width = .1) +
-    theme(axis.text = element_text(size = 8)) +
-    xlab("")
-}
+# ggsave("plots/CI_plot_prevalence_vertical.png", prevalence, width = 9.50, height = 14.40, dpi = 1500)
+# ggsave("plots/CI_plot_prevalence_horizontal.png", prevalence, width = 9.50, height = 5.45, dpi = 1500)
 
-ci_plot(data, GENDER)
 
 
 # Associations with Cramers V ==========================================================================================
