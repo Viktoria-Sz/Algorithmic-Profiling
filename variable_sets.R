@@ -57,9 +57,6 @@ all = c("EMPLOYMENTDAYS", "GENDER", "AGEGROUP", "CHILDCARE", "CHILDCARE_both", "
 
 all <- janitor::make_clean_names(all)
 
-# t1
-# bewerbung_no, vorstell_no, suche_specific, suchintens, deutsch5
-
 # Green Variables ------------------------------------------------------------------------------------------------------
 green_big <- c(ams, "zusage", "match", "jobsat", "vertrag", "endreason", "ALexp", "exp",
                "intrins", "extrins", "lottery", "lifesat", "prefcat", "endreason01",
@@ -78,10 +75,6 @@ green_big <- c(ams, "zusage", "match", "jobsat", "vertrag", "endreason", "ALexp"
                "kast1corra", "kast2corra", "drecall", "relig_islam", "ability"
 )
 green_big <- janitor::make_clean_names(green_big)
-
-
-green_t1 <- c("deutsch5", "bewerbung_no", "vorstell_no", "suche_specific", "suchintens",  "soc_konflikt", "soc_versteh")
-# green_t1 <- janitor::make_clean_names(green_t1)
 
 green <- c(ams, "zusage", "a_lexp",
            "intrins", "extrins", "prefcat", "a_instrumental", "trust",
