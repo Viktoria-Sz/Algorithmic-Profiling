@@ -52,8 +52,6 @@ graph = fencoder %>>% ord_to_int %>>% tuner_glmnet
 
 graph_glmnet = as_learner(graph)
 
-# Tune lambda
-# https://mlr3learners.mlr-org.com/reference/mlr_learners_classif.glmnet.html 
 
 # Decision Tree --------------------------------------------------------------------------------------------------------
 learner_rpart = lrn("classif.rpart", id = "Decision Tree", predict_type = "prob", predict_sets = "test")
@@ -97,7 +95,6 @@ tuner_ranger = AutoTuner$new(
   terminator = terminator,
   tuner = tuner
 )
-#tuner_ranger$train(task_ams)
 
 # xgboost --------------------------------------------------------------------------------------------------------------
 # Define learner:
@@ -128,36 +125,6 @@ tuner_xgboost = AutoTuner$new(
 graph = fencoder %>>% ord_to_int %>>% tuner_xgboost
 graph_xgboost = as_learner(graph)
 
-# SVM ------------------------------------------------------------------------------------------------------------------
-learner_svm = lrn("classif.svm", predict_type = "prob", predict_sets = "test")
-
-# Possible tuning parameter
-learner_svm$param_set
-
-# get tuning space from default tuning search spaces
-tuning_space_svm = lts("classif.svm.rbv2")
-
-learner_svm$param_set$values = tuning_space_svm$values
-tuning_space_svm$values
-
-
-# Set up autotuner instance with the predefined setups
-tuner_svm = AutoTuner$new(
-  learner = learner_svm,
-  resampling = resampling,
-  measure = measures_tuning, 
-  terminator = terminator,
-  tuner = tuner
-)
-
-graph = fencoder %>>% ord_to_int %>>% tuner_svm
-graph_svm = as_learner(graph)
-
-
-# Error in self$assert(xs) : 
-#   Assertion on 'xs' failed: The parameter 'cost' can only be set if the following condition is met 'type = C-classification'. Instead the parameter value for 'type' is not set at all. Try setting 'type' to a value that satisfies the condition.
-# This happened PipeOp classif.svm.tuned's $train()
-
 # Autotune kknn --------------------------------------------------------------------------------------------------------
 # Define learner:
 learner_kknn = lrn("classif.kknn", predict_type = "prob", predict_sets = "test")
@@ -180,14 +147,4 @@ tuner_kknn = AutoTuner$new(
   terminator = terminator,
   tuner = tuner
 )
-
-
-# resampling_outer_ho = rsmps("holdout", ratio = 0.8)
-# design = benchmark_grid(
-#   tasks = task_ams,
-#   learners = c(tuner_rpart, tuner_ranger, graph_glmnet, graph_xgboost, tuner_kknn),
-#   resamplings = resampling_outer_ho
-# )
-# bmr = benchmark(design)
-# bmr$score(performance_measures)
 
