@@ -1,44 +1,19 @@
-# PREPARATTION #################################################################
-
-# Libraries --------------------------------------------------------------------
+# PREPARATTION #########################################################################################################
+# Libraries ------------------------------------------------------------------------------------------------------------
 library(tidyverse)
-library(skimr) # for function skim
 library(psych) # for function describe
-library(corrplot) # use corrplot(cor(...)) for nice correlation plots
 library(writexl)
 library(DataExplorer)
 library(janitor)
 
-# Load data --------------------------------------------------------------------
+# Load data ------------------------------------------------------------------------------------------------------------
 data <- readRDS("data/dataJuSAW.rds")
 
-# Steps for analysis
-# • Analysis for each variable
-# • Visualization for bivariate associations (e.g. Scatter‐plots & boxplots)
-# • Correlations
-# • Regression model
-# • Covariate Selection
-# • Checking for collinearity
-# • Checking for diagnostics (residual analysis)
-
-################################################################################
-# Exploring the data ===========================================================
+# Exploring the data ===================================================================================================
 str(data)
-
 names(data)
 summary(data)
-skim <- skim(data) %>%
-  tibble::as_tibble()
-write_xlsx(skim, "data/skimmed_data.xlsx")
 describe(data)
-DataExplorer::create_report(data)
-
-numeric.only <-sapply(data,class)=='numeric'
-describe(data[,numeric.only])
-
-# data %>% 
-#   skimr::skim(dest, carrier) 
-
 
 # Variable exploration =================================================================================================
 
@@ -113,31 +88,28 @@ data$IMPAIRMENT_strong <- relevel(data$IMPAIRMENT_strong, ref = "no")
 is.ordered(data$IMPAIRMENT_order)
 is.ordered(data$IMPAIRMENT)
 
-# Was machen mit den den "keine Angabe" Leuten?
+
 table(data$IMPAIRMENT_order, useNA = "always")
 table(data$IMPAIRMENT_order, data$lhealth, useNA = "always")
 table(data$IMPAIRMENT, data$IMPAIRMENT_order, useNA = "always")
 table(data$IMPAIRMENT_strong, useNA = "always")
-#data <- subset(data, !is.na(IMPAIRMENT))
-
 
 # Migration background -------------------------------------------------------------------------------------------------
 table(data$birthAT, useNA = "always")
 table(data$birthAT_v, useNA = "always") # Vater: Geburtsland Österreich
 table(data$birthAT_m, useNA = "always") # Mutter: Geburtsland Österreich
 table(data$migklasse, useNA = "always")
-table(data$schuleat, useNA = "always") # nachschauen
+table(data$schuleat, useNA = "always") 
 
 table(data$mighint12g_new, useNA = "always") # 0=kein Migrationshintergrund - wenn keine Info zu Vater/Mutter, dann nur Mig wenn Hinweis durch 1 Elternteil
 ggplot(data, aes(x = mighint12g_new, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill") # scheint nicht mit Employmentdays zu korrelieren
+  geom_bar(position = "fill") 
 
-table(data$deutsch5, useNA = "always") # leider nur t1...
+table(data$deutsch5, useNA = "always") # leider nur t1
 ggplot(data, aes(x = deutsch5, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
-  geom_bar(position = "fill") # scheint nicht mit Employmentdays zu korrelieren
-# Könnte man das irgendwie imputieren?
+  geom_bar(position = "fill") #
 
-table(data$deutschpex, useNA = "always") # nachschauen
+table(data$deutschpex, useNA = "always") 
 ggplot(data, aes(x = as.factor(deutschpex), group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = "fill")
 
@@ -158,15 +130,12 @@ ggplot(data, aes(x = relig_islam, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)
   geom_bar(position = "fill")
 
 # RGS Typ --------------------------------------------------------------------------------------------------------------
-table(data$r_rgstyp, useNA = "always") # wenn education !is.na dann passt das hier auch
+table(data$r_rgstyp, useNA = "always") 
 data$RGS <-factor(data$r_rgstyp, levels = c("1", "2", "3", "4"), labels =  c("1", "2", "3", "4"), ordered = TRUE)
 table(data$RGS, useNA = "always")
 
 # RGS Typ 1 auslassen, da es nur einmal/zweimal vorkommt/ oder zu 2 hinzutun?
-#data <- subset(data, !is.na(RGS))
 data[data$RGS==1 & !is.na(data$RGS),"RGS"] <- 2
-#data$RGS <- relevel(data$RGS, ref = "1")
-
 
 # Hard Skills ==========================================================================================================
 # Education ------------------------------------------------------------------------------------------------------------
@@ -176,7 +145,6 @@ table(data$eduhöchst4,data$eduhöchst4_t1, useNA = "always")
 
 table(data$notede, useNA = "always") # Schulnote letztes Zeugnis: Deutsch
 table(data$notema, useNA = "always") # Schulnote letztes Zeugnis: Mathematik
-# Beides nicht so eindeutig korreliert
 
 table(data$elternschulint, useNA = "always")
 table(data$yrsedu, useNA = "always")
@@ -197,12 +165,11 @@ ggplot(data, aes(x = as.factor(abbruch01), group = EMPLOYMENTDAYS, fill = EMPLOY
 table(data$r_ausbildung, useNA = "always") 
 data$EDUCATION <- factor(data$r_ausbildung, levels = c("L", "M", "P"), labels =  c("L", "M", "P"), ordered = FALSE)
 data$EDUCATION <- relevel(data$EDUCATION, ref = "P")
-#data <- subset(data, !is.na(EDUCATION))
 table(data$EDUCATION, useNA = "always")
 
 # Ability --------------------------------------------------------------------------------------------------------------
 table(data$SDT, useNA = "always")  # Symbol Zahlen Test  
-# Geht eigentlich nur bis 10, wo kommt die 11 her???
+# Geht eigentlich nur bis 10, wo kommt die 11 her?
 data[data$SDT == 11, "SDT"] <- 10
 ggplot(data, aes(x = EMPLOYMENTDAYS, y = SDT)) +
   geom_boxplot() #+
@@ -263,13 +230,12 @@ data$ability <- data$SDT_grouped +data$tiere_no_grouped + data$drecall_grouped +
 table(data$ability, useNA = "always")
 ggplot(data, aes(x = EMPLOYMENTDAYS, y = ability)) +
   geom_boxplot()
-# Aufteilen in Mathe und sonstige Aufgaben?
 
 # Job ------------------------------------------------------------------------------------------------------------------
 # Berufsgruppe Produktion oder Service
 table(data$r_berufsgruppe_ams1, useNA = "always")
 table(data$r_berufsgruppe, useNA = "always")
-table(data$r_berufsgruppe_ams1, data$r_berufsgruppe, useNA = "always") # Was ist mit 9? Wird nicht berücksichtigt im AMS Methoden paper
+table(data$r_berufsgruppe_ams1, data$r_berufsgruppe, useNA = "always")
 data$OCCUPATIONGROUP_all <- factor(data$r_berufsgruppe_ams1, ordered = FALSE)
 data$OCCUPATIONGROUP <- factor(data$r_berufsgruppe, ordered = FALSE)
 
@@ -327,7 +293,7 @@ table(data$beruf_isco1_t1, useNA = "always")
 
 # How many were employed before/ for at least 3 months?
 table(data$job3, useNA = "always") # 3 Monate Job gehabt?
-table(data$dauer_längster, useNA = "always") # Keine 249 Personen -> was sind das für Kategorien? In welcher Einheit ist das?
+table(data$dauer_längster, useNA = "always")
 
 table(data$match, useNA = "always") # Qualitätsmerkmal job
 table(data$match_l_t1, useNA = "always")
@@ -352,7 +318,7 @@ table(data$endreason01, useNA = "always") # Zusammenfassung
 
 
 # Next job -------------------------------------------------------------------------------------------------------------
-table(data$zusage, useNA = "always") #!!! Genauer analysiern, eventuell alle mit Zusage rausnehmen
+table(data$zusage, useNA = "always") 
 table(data$zusage_t1, useNA = "always")
 table(data$zusage, data$EMPLOYMENTDAYS, useNA = "always")
 table(data$zusage_t1, data$EMPLOYMENTDAYS, useNA = "always")
@@ -361,14 +327,13 @@ table(data$zusage_t1, data$EMPLOYMENTDAYS, useNA = "always")
 table(data$bewerbung_no, useNA = "always")      
 table(data$vorstell_no, useNA = "always")
 table(data$suche_specific, useNA = "always")   
-# Suchintens hat viele NAs (512), wurde leider nur in t1 abgefragt...
-# Imputieren wäre vielleicht eine Möglichkeit?
-table(data$suchintens, useNA = "always")
+
+table(data$suchintens, useNA = "always") # leider nur t1
 ggplot(data, aes(x = EMPLOYMENTDAYS, y = suchintens)) +
-  geom_boxplot() # hätte aber eigentlich korrelation...
+  geom_boxplot() 
 
 # Soft Skilss ==========================================================================================================
-# Jobattributpräferenz ---------------------------------------------------------
+# Jobattributpräferenz -------------------------------------------------------------------------------------------------
 # Motivation
 table(data$effortmot, useNA = "always")
 
@@ -487,7 +452,7 @@ table(data$p_trust, useNA = "always")
 table(data$p_faul, useNA = "always")
 table(data$p_laidback, useNA = "always")
 table(data$p_goaloriented, useNA = "always")
-table(data$p_noculture, useNA = "always") # was war das?
+table(data$p_noculture, useNA = "always") 
 table(data$p_extravert, useNA = "always")
 table(data$p_sorgen, useNA = "always")
 table(data$p_kritisieren, useNA = "always")
@@ -585,7 +550,7 @@ ggplot(data, aes(x = fz_lesen, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
 
 # Time structure -------------------------------------------------------------------------------------------------------
 # nochmal nachschauen was das jahoda zeug ist und was ist das p - p heißt vergangen
-# Alles t1 mit sher vielen missings -> unwichtig für mich
+# Alles t1 mit sher vielen missings
 table(data$jahoda_timestruc_aufst, useNA = "always")
 table(data$jahoda_timestruc_termine, useNA = "always")
 table(data$jahoda_timestruc_tag, useNA = "always")
@@ -730,26 +695,3 @@ data_clean <- janitor::clean_names(data)
 
 saveRDS(data, "data/JuSAW_prepared.rds")
 saveRDS(data_clean, "data/JuSAW_prepared_clean.rds")
-
-# RESTE ################################################################################################################
-# t0-t1 Plot Barplott --------------------------------------------------------------------------------------------------
-table(lottery)
-table(lottery_t1)
-
-lottery_df <- data %>%
-  select(lottery, lottery_t1) %>%
-  pivot_longer(c("lottery", "lottery_t1"), names_to = "time", values_to="lottery", values_drop_na = TRUE)
-lottery_df$time <- factor(lottery_df$time, levels = c("lottery", "lottery_t1"), labels =  c("t0", "t1"), ordered = FALSE) %>%
-  relevel(ref = "t0")
-
-ggplot(lottery_df, aes(x = lottery, fill = time)) +
-  geom_bar(position = position_dodge(width = 0.5)) +
-  #scale_alpha_discrete(range = c(0.5,1)) +
-  theme_bw(base_size = 15)
-
-ggplot(lottery_df, aes(x = time, fill = lottery)) +
-  geom_bar(position = "fill") +
-  theme_bw(base_size = 15)
-
-# Problemvariablen
-# Error: Task 'AMS' has missing values in column(s) 'BUSINESSCASEDUR', 'BUSINESSCASEFREQ', 'EMPLOYMENT', 'SUPPORTMEASURE', 'alccut', 'depress', 'deutsch5', 'notede', 'notema', 'recall', 'reserve', 'suchintens', 'zusage', but learner 'classif.log_reg' does not support this
