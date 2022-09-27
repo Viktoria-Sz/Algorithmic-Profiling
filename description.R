@@ -8,6 +8,7 @@ library(rcompanion) # für cramers V
 library(DiscriMiner) # for correlation ratio between numeric and categorical variable
 library(DescTools) # for pairwise calculations
 library(corrplot)
+library(wesanderson) # for nicer plot colors
 
 # Load data ------------------------------------------------------------------------------------------------------------
 # load preperad dataset
@@ -137,8 +138,6 @@ ggplot(data, aes(x = RGS, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = position_dodge(width = 0.5))
 ggplot(data, aes(x = RGS, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) +
   geom_bar(position = "fill")
-# Lustigerweise genau andersrum, je schlechter das Bezirk desto mehr Leute mit über 90 Tagen
-# voll die unnötige Variable
 
 
 # Hard Skills ==========================================================================================================
@@ -168,7 +167,6 @@ ggplot(data, aes(x = EDUCATION, group = EMPLOYMENTDAYS, fill = EMPLOYMENTDAYS)) 
 ggplot(data, aes(x = EMPLOYMENTDAYS, y = ability)) +
   geom_boxplot()
 
-# Einzelne Aufgaben?
 
 # Job ------------------------------------------------------------------------------------------------------------------
 # Occupationgroup
@@ -271,10 +269,13 @@ prevalence <- ggplot(rates, aes(x = char, y = Proportion, colour = var)) +
                 , width = 0.3, size = 2) +
   theme(axis.text = element_text(size = 8)) +
   scale_y_continuous(limits = c(0, 0.6), breaks = scales::pretty_breaks(n = 5)) +
+  #scale_fill_manual(values=wes_palette(n = 6,name="Rushmore")) +
+  #scale_fill_brewer(palette="Accent") +
   facet_grid(cols = vars(var), scales = "free") +
   # facet_grid(rows = vars(var), scales = "free") +
   # coord_flip() +
   theme(legend.position = "none", axis.title.x = element_blank(), axis.title.y = element_blank())
+prevalence
 
 # ggsave("plots/CI_plot_prevalence_vertical.png", prevalence, width = 9.50, height = 14.40, dpi = 1500)
 # ggsave("plots/CI_plot_prevalence_horizontal.png", prevalence, width = 9.50, height = 5.45, dpi = 1500)
@@ -286,7 +287,6 @@ prevalence <- ggplot(rates, aes(x = char, y = Proportion, colour = var)) +
 cramerv_ams <- DescTools::PairApply(data[, c(ams[-length(ams)], "SUPPORTMEASURE_order")], DescTools::CramerV)
 #cramerv_ams <- DescTools::PairApply(data[, ams], DescTools::CramerV)
 
-# Versteh nicht warum das nicht in dem pairwise funktioniert
 cramerV(data$EMPLOYMENTDAYS, data$SUPPORTMEASURE)
 
 corrplot(cramerv_ams, is.corr = F, diag = F, type = 'lower',  col.lim = c(0, 1),  method = 'color',  tl.col = 'black'
@@ -358,16 +358,3 @@ corrplot(cor_all_num, method = 'color', diag = F, type = 'lower', tl.col = 'blac
          , tl.srt = 45, na.label = "NA" #, order = 'hclust'
          #,addCoef.col = 'grey50', number.cex = 0.5
 )
-
-
-
-# RESTE ################################################################################################################
-corrplot(cramerv, is.corr = F)
-# eher wenig correlation, vielleicht ohne diag besser
-corrplot(cramerv, diag = F,is.corr = F, type = 'lower', method = 'square', col.lim = c(0, 1), addCoef.col = 'grey50')
-corrplot(cramerv, diag = F,is.corr = F, type = 'lower', method = 'color' , col.lim = c(0, 1), addgrid.col = 'white')
-corrplot(cramerv, diag = F,is.corr = F, type = 'lower', method = 'shade', addCoef.col = 'black', number.cex = 0.8,
-         tl.col = 'black', tl.srt = 45, cl.ratio = 0.2, na.label = "NA")
-corrplot(cramerv, diag = F,is.corr = F, order = 'hclust', addrect = 4)
-
-corrplot.mixed(cramerv)
