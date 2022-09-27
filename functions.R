@@ -10,9 +10,9 @@ colorRdYlBu <- c("#D73027", "#E75237",
                  "#5F95C4", "#4575B4")
 
 heatmap <- function(df, var_y, var_x, fill) {
-  var_x <- enquo(var_x) # Variable verwendbar machen in ggplot
-  var_y <- enquo(var_y) # Variable verwendbar machen in ggplot
-  fill <- enquo(fill) # Variable verwendbar machen in ggplot
+  var_x <- enquo(var_x) 
+  var_y <- enquo(var_y) 
+  fill <- enquo(fill) 
   
   df_filtered <- df %>%
     # filter(model %in% models) %>%
@@ -29,9 +29,9 @@ heatmap <- function(df, var_y, var_x, fill) {
 }
 
 heatmap_diff <- function(df, var_y, var_x, fill) {
-  var_x <- enquo(var_x) # Variable verwendbar machen in ggplot
-  var_y <- enquo(var_y) # Variable verwendbar machen in ggplot
-  fill <- enquo(fill) # Variable verwendbar machen in ggplot
+  var_x <- enquo(var_x) 
+  var_y <- enquo(var_y) 
+  fill <- enquo(fill) 
   
   df_filtered <- df %>%
     filter(model %in% models) %>%
@@ -50,9 +50,6 @@ heatmap_diff <- function(df, var_y, var_x, fill) {
 }
 
 # Performance Measures =================================================================================================
-# sensitivity, recall, hit rate, or true positive rate (TPR)
-# -> sens umbenennen in TPR (sens, recall)
-
 # FNR
 # TPR = 1 - FNR -> FNR = 1 - TPR
 # mutate(FNR = 1-TPR)
@@ -62,9 +59,6 @@ FNR <- function(data, truth, estimate, ...) {
 }
 FNR <- new_class_metric(FNR, "minimize")
 
-# specificity, selectivity or true negative rate (TNR)
-# -> spec umbenennen in TNR (spec)
-
 # FPR
 # TNR = 1 - FPR -> FPR = 1 - TNR
 # mutate(FPR = 1-TNR)
@@ -73,9 +67,6 @@ FPR <- function(data, truth, estimate, ...) {
     mutate(.estimate = 1 - .estimate, .metric = "FPR")
 }
 FPR <- new_class_metric(FPR, "minimize")
-
-# precision or positive predictive value (PPV)
-# -> precision umbenennen in PPV (precision)
 
 # False discrovery rate FDR
 # PPV = 1 - FDR -> FDR = 1 - PPV
@@ -182,13 +173,6 @@ performance <- function(df, tasks, label, protected, privileged, unprivileged, m
   measure_list
 
 }
-# measure_list = list()
-# task_list <- unique(df1$task)
-# df, tasks, label, protected, privileged, unprivileged, measure_list
-# test <- performance(df1, tasks = task_list, label = estimate_0.66, 
-#                     protected = gender, privileged = "male", unprivileged = "female", measure_list)
-# test <- performance(df1, tasks = task_list, label = estimate_0.66, 
-#                     protected = stategroup01, privileged = "AUT", unprivileged = "nAUT", measure_list)
 
 
 # CI-Plot ==============================================================================================================
@@ -243,8 +227,6 @@ df_t0t1 <- function(data, variable, variable_t1){
   
   return(df_t0t1)
 }
-# df_t0t1(data, lottery, lottery_t1)
-# plot_prob(df_t0t1(data, lottery, lottery_t1), lottery)
 
 plot_prob <- function(data, variable){
   var <- enquo(variable) # Variable verwendbar machen in ggplot
@@ -253,7 +235,6 @@ plot_prob <- function(data, variable){
     geom_bar(position = "fill") +
     theme_bw(base_size = 15)
 }
-# plot_prob(lottery_df, lottery) 
 
 plot_count <- function(data, variable){
   var <- enquo(variable) # Variable verwendbar machen in ggplot
@@ -262,4 +243,3 @@ plot_count <- function(data, variable){
     geom_bar(position = position_dodge(width = 0.5)) +
     theme_bw(base_size = 15)
 }
-# plot_count(lottery_df, lottery) 
