@@ -486,19 +486,4 @@ sum(!ids)
 # 
 # write(ho$test_set(1), file = "test_ids2.txt")
 # write(case_ids, file = "test_ids_case2.txt")
-# 
-# # Check test set equality ==============================================================================================
-# #setequal(task_ams_youth$row_roles$holdout, task_green$row_roles$holdout)
-# 
-# 
-# #setequal(task_green_big$data(test_ids), task_filtering$data(test_ids))
-# #setdiff(task_ams_youth$data(test_ids), task_filtering$data(test_ids))
-# #is.element(task_green_big$data(), task_filtering$data())
-# 
-# 
-# # setequal(task_green_big$data(which(is.element(task_green_big$row_names$row_name, case_ids))), 
-# #          task_filtering$data(which(is.element(task_filtering$row_names$row_name, case_ids))))
-# 
-# 
-#is.element(test_ids, task_filtering$row_names$row_id)
 
