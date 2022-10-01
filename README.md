@@ -14,4 +14,6 @@ accuracy and fairness was also observed, consistent with numerous other publicat
 On average, the model class "extreme gradient boosting" performed best in regard to
 performance and fairness over all tasks.
 
+![alt text](https://github.com/[vik-sz]/[Algorithmic-Profiling]/plots/AMS youth_0.66_heatmap.jpg?raw=true)
+
 Whole text: MA-Viktoria Szabo.pdf
