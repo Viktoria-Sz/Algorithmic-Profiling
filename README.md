@@ -13,3 +13,6 @@ fairness over all model classes. Nevertheless, a general trade-off between overa
 accuracy and fairness was also observed, consistent with numerous other publications.
 On average, the model class "extreme gradient boosting" performed best in regard to
 performance and fairness over all tasks.
+
+Whole text:
+<a href=/MA-Viktoria Szabo.pdf>
