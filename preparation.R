@@ -54,7 +54,7 @@ table(data$kinder, data$female)
 table(data$kinder, useNA = "always")
 
 data$CHILDCARE_both <-factor(data$kinder, levels = c("ja", "nein"), labels =  c("ja", "nein"), ordered = FALSE)
-data$CHILDCARE <- ifelse(data$GENDER == "female" & data$CHILDCARE_both =="ja", "ja", "nein")
+data$CHILDCARE <- ifelse(data$GENDER == "female" & data$CHILDCARE_both =="ja", "yes", "no")
 data$CHILDCARE <- factor(data$CHILDCARE, ordered = FALSE)
 data$CHILDCARE_men <- ifelse(data$GENDER == "male" & data$CHILDCARE_both =="ja", "ja", "nein")
 data$CHILDCARE_men <- factor(data$CHILDCARE_men, ordered = FALSE)

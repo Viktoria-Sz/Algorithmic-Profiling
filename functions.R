@@ -50,6 +50,7 @@ heatmap_diff <- function(df, var_y, var_x, fill) {
 }
 
 # Performance Measures =================================================================================================
+library(yardstick) # performance
 # FNR
 # TPR = 1 - FNR -> FNR = 1 - TPR
 # mutate(FNR = 1-TPR)
