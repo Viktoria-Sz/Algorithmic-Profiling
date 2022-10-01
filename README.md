@@ -14,5 +14,4 @@ accuracy and fairness was also observed, consistent with numerous other publicat
 On average, the model class "extreme gradient boosting" performed best in regard to
 performance and fairness over all tasks.
 
-Whole text:
-<a href=/MA-Viktoria Szabo.pdf>
+Whole text: MA-Viktoria Szabo.pdf
