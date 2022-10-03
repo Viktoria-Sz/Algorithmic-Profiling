@@ -155,10 +155,12 @@ for(i in task_list[-1]){
   rates_mig <- rbind(rates_mig, rates_new_mig)
 }
 rates = rbind(rates_gender, rates_mig)
+rates_selected <- filter(rates, task == "AMS youth" | task == "diverse" | task == "other_PES" 
+                         | task == "personality" | task == "filtering_disr")
 
-demographic_parity_0.66 <- ggplot(rates, aes(x = char, y = Proportion, colour = var)) +
+demographic_parity_0.66 <- ggplot(rates_selected, aes(x = char, y = Proportion, colour = var)) +
   geom_hline(yintercept = jobpred_rate_0.66, col = "red", alpha = .35, lty = 2) + 
-  theme_bw(10) +
+  theme_bw(15) +
   geom_point(size = 5) +
   geom_errorbar(aes(ymin = Lower, ymax = Upper)
                 , width = 0.3, size = 2) +
@@ -172,7 +174,7 @@ demographic_parity_0.66 <- ggplot(rates, aes(x = char, y = Proportion, colour = 
   theme(legend.position = "none", axis.title.x = element_blank(), axis.title.y = element_blank())
 demographic_parity_0.66
 
-ggsave("plots/demographic_parity_0.66.png", demographic_parity_0.66, width = 9.50, height = 14.40, dpi = 600)
+ggsave("plots/demographic_parity_0.66_selected.png", demographic_parity_0.66, width = 9.50, height = 14.40, dpi = 600)
 
 # 0.25 threshold _______________________________________________________________________________________________________
 binom_stats_pred <- function(x, ...) {
@@ -229,10 +231,12 @@ for(i in task_list[-1]){
   rates_mig <- rbind(rates_mig, rates_new_mig)
 }
 rates = rbind(rates_gender, rates_mig)
+rates_selected <- filter(rates, task == "AMS youth" | task == "diverse" | task == "other_PES" 
+                         | task == "personality" | task == "filtering_disr")
 
-demographic_parity_0.25 <- ggplot(rates, aes(x = char, y = Proportion, colour = var)) +
+demographic_parity_0.25 <- ggplot(rates_selected, aes(x = char, y = Proportion, colour = var)) +
   geom_hline(yintercept = jobpred_rate_0.25, col = "red", alpha = .35, lty = 2) + 
-  theme_bw(10) +
+  theme_bw(15) +
   geom_point(size = 5) +
   geom_errorbar(aes(ymin = Lower, ymax = Upper)
                 , width = 0.3, size = 2) +
@@ -246,7 +250,7 @@ demographic_parity_0.25 <- ggplot(rates, aes(x = char, y = Proportion, colour = 
   theme(legend.position = "none", axis.title.x = element_blank(), axis.title.y = element_blank())
 demographic_parity_0.25
 
-ggsave("plots/demographic_parity_0.25.png", demographic_parity_0.25, width = 9.50, height = 14.40, dpi = 600)
+ggsave("plots/demographic_parity_0.25_selected.png", demographic_parity_0.25, width = 9.50, height = 14.40, dpi = 600)
 
 
 # Measures -------------------------------------------------------------------------------------------------------------
@@ -277,20 +281,27 @@ results_0.66_stategroup_df <- bind_rows(results_0.66_stategroup, .id = "task")
 
 
 # Best accuracy ________________________________________________________________________________________________________
+# worst accuracy
 results_0.66_gender_df %>%
   filter(.metric == "Accuracy") %>%
   arrange(.estimate)
+# best accuracy
 results_0.66_gender_df %>%
   filter(.metric == "Accuracy") %>%
-  arrange(desc(.estimate))
+  arrange(desc(.estimate)) -> best_accuracy
+# write_xlsx(best_accuracy,"models\\averages\\best_accuracy.xlsx")
 
 # Best ROC_AUC ________________________________________________________________________________________________________
+# worst
 results_0.66_gender_df %>%
   filter(.metric == "ROC_AUC") %>%
   arrange(.estimate)
+# best
 results_0.66_gender_df %>%
   filter(.metric == "ROC_AUC") %>%
-  arrange(desc(.estimate))
+  arrange(desc(.estimate)) -> best_auc
+# write_xlsx(best_auc,"models\\averages\\best_auc.xlsx")
+
 
 # Means by task groups -------------------------------------------------------------------------------------------------
 # AMS
@@ -395,6 +406,37 @@ averages_0.25_stategroup <- results_0.25_stategroup_df %>%
             mean_AUT = round(mean(AUT),round), mean_nAUT = round(mean(nAUT),round), mean_diff = round(mean(priv_diff),round))
 # write_xlsx(averages_0.25_stategroup,"models\\averages\\averages_0.25_stategroup.xlsx")
 
+# Best measures models _________________________________________________________________________________________________
+# Best accuracy
+averages_0.66_gender %>%
+  group_by(task) %>%
+  filter(.metric == "Accuracy") %>%
+  arrange(desc(mean_all)) #-> accuracy_task
+#write_xlsx(accuracy_task,"models\\averages\\accuracy_task.xlsx")
+
+# Best ROC-AUC
+averages_0.66_gender %>%
+  group_by(task) %>%
+  filter(.metric == "ROC_AUC") %>%
+  arrange(desc(mean_all)) #-> auc_task
+#write_xlsx(auc_task,"models\\averages\\auc_task.xlsx")
+
+
+# Gender diffs
+averages_0.66_gender %>%
+  group_by(task) %>%
+  summarise(sum = sum(abs(mean_diff), na.rm = TRUE)) %>%
+  arrange(sum) #-> genderdiff_task
+#write_xlsx(genderdiff_task,"models\\averages\\genderdiff_task.xlsx")
+
+# stategroup diffs
+averages_0.66_stategroup %>%
+  group_by(task) %>%
+  summarise(sum = sum(abs(mean_diff), na.rm = TRUE)) %>%
+  arrange(sum) #-> stategroupdiff_task
+#write_xlsx(stategroupdiff_task,"models\\averages\\stategroupdiff_task.xlsx")
+
+
 # Averages by model 0.66 -------------------------------------------------------------------------------------------------
 averages_0.66_gender_model <- results_0.66_gender_df %>%
   group_by(model, .metric) %>%
@@ -413,25 +455,30 @@ averages_0.66_stategroup_model <- results_0.66_stategroup_df %>%
 averages_0.66_gender_model %>%
   group_by(model) %>%
   filter(.metric == "Accuracy") %>%
-  arrange(desc(mean_all))
+  arrange(desc(mean_all)) #-> accuracy_model
+# write_xlsx(accuracy_model,"models\\averages\\accuracy_model.xlsx")
 
 # Best ROC-AUC
 averages_0.66_gender_model %>%
   group_by(model) %>%
   filter(.metric == "ROC_AUC") %>%
-  arrange(desc(mean_all))
+  arrange(desc(mean_all)) #-> auc_model
+#write_xlsx(auc_model,"models\\averages\\auc_model.xlsx")
+
 
 # Gender diffs
 averages_0.66_gender_model %>%
   group_by(model) %>%
   summarise(sum = sum(abs(mean_diff), na.rm = TRUE)) %>%
-  arrange(sum)
+  arrange(sum) #-> genderdiff_model
+#write_xlsx(genderdiff_model,"models\\averages\\genderdiff_model.xlsx")
 
 # stategroup diffs
 averages_0.66_stategroup_model %>%
   group_by(model) %>%
   summarise(sum = sum(abs(mean_diff), na.rm = TRUE)) %>%
-  arrange(sum)
+  arrange(sum) #-> stategroupdiff_model
+#write_xlsx(stategroupdiff_model,"models\\averages\\stategroupdiff_model.xlsx")
 
 
 # Averages by model 0.25 -----------------------------------------------------------------------------------------------

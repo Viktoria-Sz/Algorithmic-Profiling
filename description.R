@@ -24,11 +24,16 @@ source("functions.R", encoding="utf-8")
 # Employmentdays - dependent variable ----------------------------------------------------------------------------------
 ggplot(data, aes(x = as.factor(r_besch), fill = as.factor(r_besch))) +
   geom_bar() +
+  scale_fill_manual(values=c("#FFCC00", "#999999"))+
   geom_text(stat = "count", aes(label = ..count..), vjust = -0.5) +
-  labs(title = "Days in employment more of less than 90 in last 7 months",
-       y = "count", x = "EMPLOYMENTDAYS",
+  theme_bw(14) +
+  # labs(title = "Days in employment more of less than 90 in last 7 months",
+  #      y = "count", x = "EMPLOYMENTDAYS",
+  #      fill = "EMPLOYMENTDAYS") +
+  labs(title = "Beschäftigungszeitraum mehr oder weniger als 90 Tage in 7 Monaten",
+       y = "Beobachtungen", x = "Beschäftigungstage",
        fill = "EMPLOYMENTDAYS") +
-  scale_x_discrete(labels = c("1" = ">=90 days", "0" = "<90 days")) +
+  scale_x_discrete(labels = c("1" = ">=90 Tage", "0" = "<90 Tage")) +
   theme(legend.position = "none")
 
 # Gender ---------------------------------------------------------------------------------------------------------------
@@ -267,6 +272,7 @@ prevalence <- ggplot(rates, aes(x = char, y = Proportion, colour = var)) +
   theme_bw() +
   geom_errorbar(aes(ymin = Lower, ymax = Upper)
                 , width = 0.3, size = 2) +
+  scale_color_manual(values=c("#FFDB6D", "#C4961A", "#D16103", "#52854C", "#4E84C4", "#293352"))+
   theme(axis.text = element_text(size = 8)) +
   scale_y_continuous(limits = c(0, 0.6), breaks = scales::pretty_breaks(n = 5)) +
   #scale_fill_manual(values=wes_palette(n = 6,name="Rushmore")) +
@@ -274,6 +280,7 @@ prevalence <- ggplot(rates, aes(x = char, y = Proportion, colour = var)) +
   facet_grid(cols = vars(var), scales = "free") +
   # facet_grid(rows = vars(var), scales = "free") +
   # coord_flip() +
+  #labs(title = "Anteile der Arbeitssuchenden mit erfülltem Zielkriterium in verschiedenen demographischen Gruppen") +
   theme(legend.position = "none", axis.title.x = element_blank(), axis.title.y = element_blank())
 prevalence
 
