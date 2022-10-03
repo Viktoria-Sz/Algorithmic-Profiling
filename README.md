@@ -14,8 +14,9 @@ accuracy and fairness was also observed, consistent with numerous other publicat
 On average, the model class "extreme gradient boosting" performed best in regard to
 performance and fairness over all tasks.
 
-![plot](https://github.com/[vik-sz]/[Algorithmic-Profiling]/plots/diverse_0.66_heatmap.jpg)
+Whole text: <a href="/MA-Viktoria_Szabo.pdf" target="_blank">Mather's Thesis</a>
 
-![alt text](https://github.com/[vik-sz]/[Algorithmic-Profiling]/plots/diverse_0.66_heatmap.jpg?raw=true)
+<img src='/plots/diverse_0.66_heatmap.png' width="700" 
+     height="1000">
 
-Whole text: ![alt text](https://github.com/[vik-sz]/[Algorithmic-Profiling]/MA-Viktoria Szabo.pdf)
+
