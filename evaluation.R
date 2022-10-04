@@ -578,7 +578,7 @@ heatmap_list_0.66_statediff = list()
 for(i in task_list){
   p = heatmap_diff(results_0.66_stategroup[[i]], model, .metric, priv_diff) +
     labs(subtitle = "Stategroup differences (Austrian - non-Austraian)") 
-  # name = paste0("plots/", i, "_0.66_heatmap_one_diff_stategroup.png")
+   #name = paste0("plots/", i, "_0.66_heatmap_one_diff_stategroup.png")
   # ggsave(name, p, dpi = 200)
   heatmap_list_0.66_statediff = append(heatmap_list_0.66_statediff,  list(p))
 }

@@ -34,7 +34,7 @@ heatmap_diff <- function(df, var_y, var_x, fill) {
   fill <- enquo(fill) 
   
   df_filtered <- df %>%
-    filter(model %in% models) %>%
+    #filter(model %in% models) %>%
     filter(.metric %in% selected_measures)
   
   ggplot(df_filtered, aes(y= !!var_y, x = !!var_x, fill = !!fill)) +
